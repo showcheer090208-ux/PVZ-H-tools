@@ -1,76 +1,117 @@
 {% extends "base.html" %}
 
-{% block title %}Unity 资源管理 - PVZH 工坊{% endblock %}
+{% block title %}资源综合管理 - PVZH 工坊{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto space-y-8">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 pb-16 pt-6">
     
-    <div class="text-center mb-8">
-        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Unity Bundle 管理器</h1>
-        <p class="text-gray-500 mt-2">支持全资源解析与精准回填</p>
+    <!-- 顶部标题区 -->
+    <div class="text-center mb-12">
+        <div class="inline-flex items-center justify-center p-3 bg-blue-50 rounded-2xl mb-4 shadow-inner">
+            <span class="material-symbols-rounded text-blue-600 text-4xl">inventory_2</span>
+        </div>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">资源综合管理</h1>
+        <p class="text-gray-500 mt-3 text-sm md:text-base max-w-2xl mx-auto">专业级解包与打包套件。适用于高阶模组制作者提取贴图或修改底层 JSON 数据。</p>
     </div>
 
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sm:p-8 hover:shadow-md transition-shadow duration-300">
-        <div class="flex items-center mb-4">
-            <div class="bg-blue-50 p-2.5 rounded-xl mr-4">
-                <span class="material-symbols-rounded text-blue-600">unarchive</span>
-            </div>
-            <h2 class="text-xl font-bold text-gray-800">第一步：全资源解包</h2>
-        </div>
-        <p class="text-sm text-gray-500 mb-6">上传 Bundle 文件，导出 JSON 配置和图片。限制大小：<span class="font-semibold text-red-500">10MB</span> 以内。</p>
-        
-        <form action="/unpack" method="post" enctype="multipart/form-data" onsubmit="showLoading(this, '解包并下载 ZIP')">
-            <input type="file" name="bundle" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition cursor-pointer mb-4">
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 shadow-sm flex justify-center items-center">
-                解包并下载 ZIP
-            </button>
-        </form>
-    </div>
+    <!-- 核心功能区：PC端双列对称布局，移动端上下堆叠 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
 
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sm:p-8 hover:shadow-md transition-shadow duration-300">
-        <div class="flex items-center mb-4">
-            <div class="bg-green-50 p-2.5 rounded-xl mr-4">
-                <span class="material-symbols-rounded text-green-600">inventory_2</span>
-            </div>
-            <h2 class="text-xl font-bold text-gray-800">第二步：回填打包 (Repack)</h2>
-        </div>
-        <p class="text-sm text-gray-500 mb-6">上传原始 Bundle 和修改后的 ZIP，生成新 Bundle。总大小限制：<span class="font-semibold text-red-500">20MB</span> 以内。</p>
-        
-        <form action="/repack" method="post" enctype="multipart/form-data" onsubmit="showLoading(this, '执行回填并下载新 Bundle')">
-            <div class="space-y-4 mb-6">
-                <div class="border border-dashed border-gray-300 p-5 rounded-2xl hover:border-gray-400 hover:bg-gray-50 transition">
-                    <label class="flex items-center text-sm font-medium text-gray-700 mb-3">
-                        <span class="material-symbols-rounded text-gray-400 mr-2 text-[20px]">file_present</span>
-                        1. 原始 Bundle 文件
-                    </label>
-                    <input type="file" name="original_bundle" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition cursor-pointer">
+        <!-- ==================== 左列：解包引擎 ==================== -->
+        <div class="bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] hover:-translate-y-1">
+            <div class="p-6 md:p-8 flex-grow flex flex-col">
+                <div class="flex items-center mb-6">
+                    <div class="bg-blue-50 w-14 h-14 rounded-2xl flex items-center justify-center mr-4 border border-blue-100">
+                        <span class="material-symbols-rounded text-blue-600 text-[32px]">unarchive</span>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">提取解包</h2>
+                        <p class="text-xs text-gray-400 font-medium mt-0.5 uppercase tracking-wider">Unpack Engine</p>
+                    </div>
                 </div>
                 
-                <div class="border border-dashed border-gray-300 p-5 rounded-2xl hover:border-gray-400 hover:bg-gray-50 transition">
-                    <label class="flex items-center text-sm font-medium text-gray-700 mb-3">
-                        <span class="material-symbols-rounded text-gray-400 mr-2 text-[20px]">folder_zip</span>
-                        2. 修改后的 ZIP 文件
-                    </label>
-                    <input type="file" name="modified_zip" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition cursor-pointer">
-                </div>
+                <p class="text-sm text-gray-500 mb-8 leading-relaxed flex-grow">
+                    上传游戏 Bundle 底包，云端将自动拆解并导出可编辑的 <span class="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-mono text-xs border border-gray-200">JSON</span> 配置文件与 PNG 高清贴图资源。
+                </p>
+
+                <form action="/unpack" method="post" enctype="multipart/form-data" onsubmit="showLoading(this)">
+                    <div class="relative group mb-6">
+                        <div class="absolute inset-0 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 group-hover:bg-blue-50/50 group-hover:border-blue-400 transition-colors pointer-events-none"></div>
+                        <input type="file" name="bundle" required 
+                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition cursor-pointer p-3 relative z-10">
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/30 transition-all transform active:scale-[0.98] flex justify-center items-center">
+                        <span class="material-symbols-rounded mr-2 text-[22px]">cloud_download</span> 
+                        开始解包提取 (限 10MB)
+                    </button>
+                </form>
             </div>
-            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 shadow-sm flex justify-center items-center">
-                执行回填并下载新 Bundle
-            </button>
-        </form>
+        </div>
+
+        <!-- ==================== 右列：打包引擎 ==================== -->
+        <div class="bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] hover:-translate-y-1 relative">
+            
+            <div class="p-6 md:p-8 flex-grow flex flex-col">
+                <div class="flex items-center mb-6">
+                    <div class="bg-green-50 w-14 h-14 rounded-2xl flex items-center justify-center mr-4 border border-green-100">
+                        <span class="material-symbols-rounded text-green-600 text-[32px]">library_add</span>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">合成回填</h2>
+                        <p class="text-xs text-gray-400 font-medium mt-0.5 uppercase tracking-wider">Repack Engine</p>
+                    </div>
+                </div>
+
+                <p class="text-sm text-gray-500 mb-8 leading-relaxed">
+                    将你修改好的补丁包注入回原始 Bundle 中。引擎会自动匹配 <code>PathID</code> 并进行无损替换。
+                </p>
+
+                <form action="/repack" method="post" enctype="multipart/form-data" onsubmit="return handleRepack(this)" class="flex-grow flex flex-col">
+                    
+                    <div class="space-y-4 mb-8 flex-grow">
+                        <!-- 1. 底包上传 (支持多选) -->
+                        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                            <label class="block text-xs font-bold text-gray-700 mb-2 ml-1">1. 原始 Bundle (基础底包，可多选)</label>
+                            <input type="file" name="original_bundles" multiple required 
+                                   class="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-white file:text-gray-700 file:border file:border-gray-200 hover:file:bg-gray-50 transition cursor-pointer">
+                        </div>
+
+                        <!-- 2. 修改包上传 -->
+                        <div class="bg-orange-50/50 p-4 rounded-2xl border border-orange-100/50">
+                            <label class="block text-xs font-bold text-orange-800 mb-2 ml-1">2. 修改后的 ZIP 补丁包</label>
+                            <input type="file" name="mod_zip" required
+                                   class="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 transition cursor-pointer">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btn-repack" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-lg transition-all transform active:scale-[0.98] flex justify-center items-center">
+                        <span class="material-symbols-rounded mr-2 text-[22px]">auto_fix_high</span>
+                        执行合成并导出
+                    </button>
+                </form>
+            </div>
+        </div>
+
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // 原生 JS 按钮状态控制
-    function showLoading(formElement, originalText) {
+    function showLoading(formElement) {
         const btn = formElement.querySelector('button[type="submit"]');
-        btn.innerHTML = `<span class="material-symbols-rounded animate-spin mr-2">progress_activity</span> 服务器狂奔中...`;
-        btn.classList.add('cursor-not-allowed', 'opacity-75');
-        // 防止表单提交后还能点击
+        btn.innerHTML = `<span class="material-symbols-rounded animate-spin mr-2 text-[22px]">progress_activity</span> 提取中...`;
+        btn.classList.add('cursor-not-allowed', 'opacity-80');
         setTimeout(() => { btn.disabled = true; }, 10);
+    }
+
+    function handleRepack(form) {
+        const btn = document.getElementById('btn-repack');
+        btn.innerHTML = `<span class="material-symbols-rounded animate-spin mr-2 text-[22px]">hourglass_empty</span> 引擎重组中...`;
+        btn.classList.add('opacity-80', 'cursor-not-allowed');
+        setTimeout(() => { btn.disabled = true; }, 10);
+        return true;
     }
 </script>
 {% endblock %}

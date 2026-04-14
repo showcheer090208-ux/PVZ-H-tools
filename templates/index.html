@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}大厅 - PVZH 魔改工坊{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8">
+    
+    <div class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">欢迎来到工坊控制台</h1>
+        <p class="text-lg text-gray-500">选择你要使用的云端工具</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <a href="/unity" class="group bg-white rounded-3xl shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:border-blue-200 transition-all duration-300 transform hover:-translate-y-1 block relative overflow-hidden">
+            <div class="absolute -right-6 -top-6 text-blue-50 opacity-50 group-hover:opacity-100 transition-opacity">
+                <span class="material-symbols-rounded text-9xl">view_in_ar</span>
+            </div>
+            <div class="relative z-10">
+                <div class="bg-blue-100 text-blue-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
+                    <span class="material-symbols-rounded text-3xl">unarchive</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">Unity Bundle 管理</h2>
+                <p class="text-gray-500 line-clamp-2">全网独家的云端解包与精准回填工具，告别本地笨重环境。</p>
+            </div>
+        </a>
+
+        <a href="/forum" class="group bg-white rounded-3xl shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:border-green-200 transition-all duration-300 transform hover:-translate-y-1 block relative overflow-hidden">
+            <div class="absolute -right-6 -top-6 text-green-50 opacity-50 group-hover:opacity-100 transition-opacity">
+                <span class="material-symbols-rounded text-9xl">forum</span>
+            </div>
+            <div class="relative z-10">
+                <div class="bg-green-100 text-green-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
+                    <span class="material-symbols-rounded text-3xl">chat</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">交流社区</h2>
+                <p class="text-gray-500 line-clamp-2">查看其他植物的留言，分享你的魔改心得和求助。</p>
+            </div>
+        </a>
+
+        <a href="/deck-editor" class="group bg-white rounded-3xl shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:border-purple-200 transition-all duration-300 transform hover:-translate-y-1 block relative overflow-hidden">
+            <div class="absolute -right-6 -top-6 text-purple-50 opacity-50 group-hover:opacity-100 transition-opacity">
+                <span class="material-symbols-rounded text-9xl">style</span>
+            </div>
+            <div class="relative z-10">
+                <div class="bg-purple-100 text-purple-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
+                    <span class="material-symbols-rounded text-3xl">edit_document</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">终极卡组编辑器</h2>
+                <p class="text-gray-500 line-clamp-2">云原生内存流引擎，0 延迟网页直连修改，防断网丢失技术。</p>
+            </div>
+        </a>
+
+        <a href="/tools" class="group bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 p-8 hover:border-purple-300 transition-all duration-300 block relative">
+            <div class="relative z-10 opacity-70 group-hover:opacity-100 transition-opacity">
+                <div class="bg-gray-200 text-gray-600 group-hover:bg-purple-100 group-hover:text-purple-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-colors">
+                    <span class="material-symbols-rounded text-3xl">construction</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">可视化编辑器</h2>
+                <p class="text-gray-500 line-clamp-2">研发中... 敬请期待网页端直连修改属性功能。</p>
+                <div class="mt-4 inline-flex items-center text-xs font-semibold bg-gray-200 text-gray-600 px-3 py-1 rounded-full group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                    Coming Soon
+                </div>
+            </div>
+        </a>
+
+    </div>
+</div>
+{% endblock %}
