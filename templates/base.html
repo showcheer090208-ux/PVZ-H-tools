@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PVZH 魔改工坊{% endblock %}</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* 隐藏滚动条但保留滚动功能，让界面更干净 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col antialiased">
+
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="material-symbols-rounded text-blue-600 text-3xl mr-2">build_circle</span>
+                    <span class="font-bold text-xl tracking-tight text-gray-900">PVZH 工坊</span>
+                </div>
+                
+                <nav class="flex space-x-1 sm:space-x-4 items-center">
+                    <a href="/" class="flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors {% if current_tab == 'unity' %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:bg-gray-100 hover:text-gray-900{% endif %}">
+                        <span class="material-symbols-rounded mr-1 text-[20px]">view_in_ar</span>
+                        Unity 拆包/打包
+                    </a>
+                    <a href="/tools" class="flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors {% if current_tab == 'tools' %}bg-blue-50 text-blue-700{% else %}text-gray-600 hover:bg-gray-100 hover:text-gray-900{% endif %}">
+                        <span class="material-symbols-rounded mr-1 text-[20px]">handyman</span>
+                        更多工具
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-white border-t border-gray-200 mt-auto">
+        <div class="max-w-6xl mx-auto px-4 py-6 text-center text-sm text-gray-500">
+            Deployed on Render | Powered by UnityPy & Flask & Vue.js
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

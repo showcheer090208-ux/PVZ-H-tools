@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Unity 资源管理 - PVZH 工坊{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-8">
+    
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Unity Bundle 管理器</h1>
+        <p class="text-gray-500 mt-2">支持全资源解析与精准回填</p>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sm:p-8 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center mb-4">
+            <div class="bg-blue-50 p-2.5 rounded-xl mr-4">
+                <span class="material-symbols-rounded text-blue-600">unarchive</span>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800">第一步：全资源解包</h2>
+        </div>
+        <p class="text-sm text-gray-500 mb-6">上传 Bundle 文件，导出 JSON 配置和图片。限制大小：<span class="font-semibold text-red-500">10MB</span> 以内。</p>
+        
+        <form action="/unpack" method="post" enctype="multipart/form-data" onsubmit="showLoading(this, '解包并下载 ZIP')">
+            <input type="file" name="bundle" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition cursor-pointer mb-4">
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 shadow-sm flex justify-center items-center">
+                解包并下载 ZIP
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sm:p-8 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center mb-4">
+            <div class="bg-green-50 p-2.5 rounded-xl mr-4">
+                <span class="material-symbols-rounded text-green-600">inventory_2</span>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800">第二步：回填打包 (Repack)</h2>
+        </div>
+        <p class="text-sm text-gray-500 mb-6">上传原始 Bundle 和修改后的 ZIP，生成新 Bundle。总大小限制：<span class="font-semibold text-red-500">20MB</span> 以内。</p>
+        
+        <form action="/repack" method="post" enctype="multipart/form-data" onsubmit="showLoading(this, '执行回填并下载新 Bundle')">
+            <div class="space-y-4 mb-6">
+                <div class="border border-dashed border-gray-300 p-5 rounded-2xl hover:border-gray-400 hover:bg-gray-50 transition">
+                    <label class="flex items-center text-sm font-medium text-gray-700 mb-3">
+                        <span class="material-symbols-rounded text-gray-400 mr-2 text-[20px]">file_present</span>
+                        1. 原始 Bundle 文件
+                    </label>
+                    <input type="file" name="original_bundle" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition cursor-pointer">
+                </div>
+                
+                <div class="border border-dashed border-gray-300 p-5 rounded-2xl hover:border-gray-400 hover:bg-gray-50 transition">
+                    <label class="flex items-center text-sm font-medium text-gray-700 mb-3">
+                        <span class="material-symbols-rounded text-gray-400 mr-2 text-[20px]">folder_zip</span>
+                        2. 修改后的 ZIP 文件
+                    </label>
+                    <input type="file" name="modified_zip" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition cursor-pointer">
+                </div>
+            </div>
+            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 shadow-sm flex justify-center items-center">
+                执行回填并下载新 Bundle
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 原生 JS 按钮状态控制
+    function showLoading(formElement, originalText) {
+        const btn = formElement.querySelector('button[type="submit"]');
+        btn.innerHTML = `<span class="material-symbols-rounded animate-spin mr-2">progress_activity</span> 服务器狂奔中...`;
+        btn.classList.add('cursor-not-allowed', 'opacity-75');
+        // 防止表单提交后还能点击
+        setTimeout(() => { btn.disabled = true; }, 10);
+    }
+</script>
+{% endblock %}
