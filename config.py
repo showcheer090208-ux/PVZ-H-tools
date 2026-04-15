@@ -1,5 +1,7 @@
 # config.py
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 class Config:
     SUPABASE_URL = os.environ.get("SUPABASE_URL")

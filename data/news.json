@@ -1,0 +1,32 @@
+{
+    "announcements": [
+        {
+            "id": 1,
+            "title": "新版云端工坊重构完成",
+            "content": "欢迎使用PVZH云端工坊！我们修复了底层的 Unity 处理逻辑，并优化了移动端体验。注意：由于服务器部署在 Render，长时间不访问后的首次唤醒可能存在 30-50 秒延迟。\n如果你对项目感兴趣或者支持，可以加入交流群讨论！QQ群号：991782379",
+            "type": "important"
+        }
+    ],
+    "changelogs": [
+        {
+            "date": "2026-04-15",
+            "tag": "最新",
+            "title": "大厅 UI 彻底重构与路径逻辑修复",
+            "details": [
+                "彻底解决手机端压缩软件（如 MT 管理器）造成的 _index.json 嵌套路径无法识别的 Bug。",
+                "优化了移动端工作台的底部留白，不再遮挡功能按钮。"
+            ],
+            "is_expanded": true
+        },
+        {
+            "date": "2026-04-14",
+            "tag": "优化",
+            "title": "解包格式化功能上线",
+            "details": [
+                "支持 MonoBehaviour 中嵌套 JSON 字符串的自动展开与回流压缩。",
+                "优化了 Texture2D 与 Sprite 资源的自动分类提取逻辑。"
+            ],
+            "is_expanded": false
+        }
+    ]
+}

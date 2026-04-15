@@ -3,67 +3,128 @@
 {% block title %}大厅 - PVZH 魔改工坊{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto py-8">
+<div id="lobby-app" class="py-6 md:py-8 px-4 sm:px-6 lg:px-8" v-cloak>
     
-    <div class="text-center mb-12">
-        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">欢迎来到工坊控制台</h1>
-        <p class="text-lg text-gray-500">选择你要使用的云端工具</p>
+    <div class="mb-8 md:mb-10 text-center lg:text-left">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mb-2 md:mb-3">欢迎来到工坊控制台 👋</h1>
+        <p class="text-sm md:text-base text-gray-500">选择你要使用的云端工具，或查看最新动态。</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
         
-        <a href="/unity" class="group bg-white rounded-3xl shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:border-blue-200 transition-all duration-300 transform hover:-translate-y-1 block relative overflow-hidden">
-            <div class="absolute -right-6 -top-6 text-blue-50 opacity-50 group-hover:opacity-100 transition-opacity">
-                <span class="material-symbols-rounded text-9xl">view_in_ar</span>
-            </div>
-            <div class="relative z-10">
-                <div class="bg-blue-100 text-blue-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
-                    <span class="material-symbols-rounded text-3xl">unarchive</span>
-                </div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">Unity Bundle 管理</h2>
-                <p class="text-gray-500 line-clamp-2">全网独家的云端解包与精准回填工具，告别本地笨重环境。</p>
-            </div>
-        </a>
+        <div class="lg:col-span-7 xl:col-span-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <span class="material-symbols-rounded text-blue-500 mr-2 text-[20px]">apps</span> 核心工具组件
+            </h2>
+            <div class="grid grid-cols-2 gap-3 md:gap-5 xl:grid-cols-3">
+                <a href="/unity" class="group bg-white rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 p-4 md:p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300 transform hover:-translate-y-1 block flex flex-col justify-between">
+                    <div class="bg-blue-50 text-blue-600 w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center mb-3 md:mb-5 transition-colors group-hover:bg-blue-500 group-hover:text-white">
+                        <span class="material-symbols-rounded text-[22px] md:text-3xl">unarchive</span>
+                    </div>
+                    <div>
+                        <h3 class="text-sm md:text-xl font-bold text-gray-900 mb-1">资源中心</h3>
+                        <p class="text-xs text-gray-500 line-clamp-2 hidden md:block">全网独家的云端解包与精准回填工具，告别本地笨重环境。</p>
+                    </div>
+                </a>
+                
+                <a href="/deck-editor" class="group bg-white rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 p-4 md:p-6 hover:shadow-xl hover:border-purple-200 transition-all duration-300 transform hover:-translate-y-1 block flex flex-col justify-between">
+                    <div class="bg-purple-50 text-purple-600 w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center mb-3 md:mb-5 transition-colors group-hover:bg-purple-500 group-hover:text-white">
+                        <span class="material-symbols-rounded text-[22px] md:text-3xl">style</span>
+                    </div>
+                    <div>
+                        <h3 class="text-sm md:text-xl font-bold text-gray-900 mb-1">卡组工坊</h3>
+                        <p class="text-xs text-gray-500 line-clamp-2 hidden md:block">云原生内存流引擎，0 延迟网页直连修改，防断网技术。</p>
+                    </div>
+                </a>
 
-        <a href="/forum" class="group bg-white rounded-3xl shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:border-green-200 transition-all duration-300 transform hover:-translate-y-1 block relative overflow-hidden">
-            <div class="absolute -right-6 -top-6 text-green-50 opacity-50 group-hover:opacity-100 transition-opacity">
-                <span class="material-symbols-rounded text-9xl">forum</span>
-            </div>
-            <div class="relative z-10">
-                <div class="bg-green-100 text-green-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
-                    <span class="material-symbols-rounded text-3xl">chat</span>
-                </div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">交流社区</h2>
-                <p class="text-gray-500 line-clamp-2">查看其他植物的留言，分享你的魔改心得和求助。</p>
-            </div>
-        </a>
+                <a href="/forum" class="group bg-white rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 p-4 md:p-6 hover:shadow-xl hover:border-green-200 transition-all duration-300 transform hover:-translate-y-1 block flex flex-col justify-between">
+                    <div class="bg-green-50 text-green-600 w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center mb-3 md:mb-5 transition-colors group-hover:bg-green-500 group-hover:text-white">
+                        <span class="material-symbols-rounded text-[22px] md:text-3xl">forum</span>
+                    </div>
+                    <div>
+                        <h3 class="text-sm md:text-xl font-bold text-gray-900 mb-1">交流社区</h3>
+                        <p class="text-xs text-gray-500 line-clamp-2 hidden md:block">查看其他植物的留言，分享你的魔改心得和求助。</p>
+                    </div>
+                </a>
 
-        <a href="/deck-editor" class="group bg-white rounded-3xl shadow-sm border border-gray-100 p-8 hover:shadow-xl hover:border-purple-200 transition-all duration-300 transform hover:-translate-y-1 block relative overflow-hidden">
-            <div class="absolute -right-6 -top-6 text-purple-50 opacity-50 group-hover:opacity-100 transition-opacity">
-                <span class="material-symbols-rounded text-9xl">style</span>
+                <a href="/tools" class="group bg-gray-50 rounded-2xl md:rounded-3xl border border-dashed border-gray-200 p-4 md:p-6 hover:border-gray-400 transition-all duration-300 block relative flex flex-col justify-between xl:col-span-3">
+                    <div class="flex items-center justify-between mb-3 md:mb-5">
+                        <div class="bg-gray-200 text-gray-500 w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center">
+                            <span class="material-symbols-rounded text-[22px] md:text-3xl">construction</span>
+                        </div>
+                        <span class="text-[10px] md:text-xs font-bold bg-gray-200 text-gray-600 px-2 md:px-3 py-1 rounded-full uppercase">Coming Soon</span>
+                    </div>
+                    <div>
+                        <h3 class="text-sm md:text-xl font-bold text-gray-400 mb-1">属性编辑器</h3>
+                        <p class="text-xs text-gray-400 line-clamp-2 hidden md:block">研发中... 敬请期待网页端直连修改属性功能。</p>
+                    </div>
+                </a>
             </div>
-            <div class="relative z-10">
-                <div class="bg-purple-100 text-purple-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
-                    <span class="material-symbols-rounded text-3xl">edit_document</span>
-                </div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">终极卡组编辑器</h2>
-                <p class="text-gray-500 line-clamp-2">云原生内存流引擎，0 延迟网页直连修改，防断网丢失技术。</p>
-            </div>
-        </a>
+        </div>
 
-        <a href="/tools" class="group bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 p-8 hover:border-purple-300 transition-all duration-300 block relative">
-            <div class="relative z-10 opacity-70 group-hover:opacity-100 transition-opacity">
-                <div class="bg-gray-200 text-gray-600 group-hover:bg-purple-100 group-hover:text-purple-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-colors">
-                    <span class="material-symbols-rounded text-3xl">construction</span>
+        <div class="lg:col-span-5 xl:col-span-4 space-y-6">
+            
+            {% raw %}
+            <div v-for="ann in announcements" :key="ann.id" 
+                 :class="ann.type === 'important' ? 'from-amber-50 to-orange-50 border-orange-100' : 'from-blue-50 to-indigo-50 border-blue-100'"
+                 class="bg-gradient-to-br rounded-3xl p-5 md:p-6 border shadow-sm relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 opacity-30 pointer-events-none" :class="ann.type === 'important' ? 'text-orange-200' : 'text-blue-200'">
+                    <span class="material-symbols-rounded text-8xl">campaign</span>
                 </div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">可视化编辑器</h2>
-                <p class="text-gray-500 line-clamp-2">研发中... 敬请期待网页端直连修改属性功能。</p>
-                <div class="mt-4 inline-flex items-center text-xs font-semibold bg-gray-200 text-gray-600 px-3 py-1 rounded-full group-hover:bg-purple-600 group-hover:text-white transition-colors">
-                    Coming Soon
+                <h2 :class="ann.type === 'important' ? 'text-orange-800' : 'text-blue-800'" class="text-base md:text-lg font-bold mb-3 flex items-center relative z-10">
+                    <span class="material-symbols-rounded mr-2">campaign</span> {{ ann.title }}
+                </h2>
+                <p :class="ann.type === 'important' ? 'text-orange-700/80' : 'text-blue-700/80'" class="text-sm leading-relaxed relative z-10 whitespace-pre-wrap">
+                    {{ ann.content }}
+                </p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-5 md:p-6 border border-gray-100 shadow-sm">
+                <h2 class="text-base md:text-lg font-bold text-gray-800 mb-5 flex items-center">
+                    <span class="material-symbols-rounded text-blue-500 mr-2">update</span> 更新日志
+                </h2>
+                
+                <div class="relative border-l-2 border-gray-100 ml-3 space-y-6">
+                    <div v-for="(log, index) in logs" :key="index" class="relative pl-5">
+                        <div :class="log.tag === '最新' ? 'bg-blue-100 border-blue-500' : 'bg-gray-100 border-gray-300'" 
+                             class="absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2"></div>
+                        
+                        <div class="flex flex-col cursor-pointer group" @click="log.is_expanded = !log.is_expanded">
+                            <div class="flex items-center justify-between">
+                                <div class="text-xs font-bold mb-1" :class="log.tag === '最新' ? 'text-blue-500' : 'text-gray-400'">
+                                    {{ log.date }} <span class="ml-1">[{{ log.tag }}]</span>
+                                </div>
+                                <span class="material-symbols-rounded text-gray-400 text-sm transition-transform" :class="log.is_expanded ? 'rotate-180' : ''">expand_more</span>
+                            </div>
+                            <h3 class="text-sm font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{{ log.title }}</h3>
+                        </div>
+
+                        <div v-show="log.is_expanded" class="mt-2 overflow-hidden transition-all duration-300">
+                            <ul class="text-xs text-gray-500 space-y-1.5 list-disc list-inside bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                <li v-for="detail in log.details" :key="detail" v-html="detail"></li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </a>
+            {% endraw %}
 
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const { createApp, ref } = Vue;
+    createApp({
+        setup() {
+            // 直接接收后端注入的 JSON 数据
+            const announcements = ref({{ announcements | tojson }});
+            const logs = ref({{ changelogs | tojson }});
+
+            return { announcements, logs };
+        }
+    }).mount('#lobby-app');
+</script>
 {% endblock %}
