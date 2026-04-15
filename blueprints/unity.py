@@ -7,6 +7,38 @@ import zipfile
 
 unity_bp = Blueprint('unity', __name__)
 
+def transform_json_tree(tree, mode='expand'):
+    """
+    递归处理 Unity TypeTree 中的嵌套 JSON 字符串
+    """
+    target_keys = ["m_Script", "m_Data", "m_RawData"]
+    
+    if isinstance(tree, dict):
+        for k, v in tree.items():
+            if k in target_keys:
+                if mode == 'expand' and isinstance(v, str):
+                    try:
+                        stripped = v.strip()
+                        # 启发式判断是否为 JSON 字符串
+                        if (stripped.startswith('{') and stripped.endswith('}')) or \
+                           (stripped.startswith('[') and stripped.endswith(']')):
+                            tree[k] = json.loads(v)
+                            # 递归处理套娃
+                            transform_json_tree(tree[k], mode)
+                    except:
+                        pass # 解析失败则保持原状
+                elif mode == 'collapse' and isinstance(v, (dict, list)):
+                    # 先递归收缩内层
+                    transform_json_tree(v, mode)
+                    # 压缩为无空格的单行字符串
+                    tree[k] = json.dumps(v, separators=(',', ':'), ensure_ascii=False)
+            else:
+                transform_json_tree(v, mode)
+    elif isinstance(tree, list):
+        for i in range(len(tree)):
+            transform_json_tree(tree[i], mode)
+    return tree
+
 # 1. 访问 Unity 工具主界面
 @unity_bp.route('/unity')
 def index():
@@ -31,17 +63,23 @@ def unpack():
             for obj in env.objects:
                 try:
                     name = f"Object_{obj.path_id}"
+                    
+                    # 逻辑回归：优先尝试原版的 TypeTree 提取
                     try:
                         tree = obj.read_typetree()
                         if tree:
+                            # 【核心新增】仅在此处进行安全的字符串展开
+                            tree = transform_json_tree(tree, mode='expand')
+                            
                             name = tree.get("m_Name", name)
                             file_name = f"{obj.type.name}/{name}_{obj.path_id}.json"
                             zf.writestr(file_name, json.dumps(tree, indent=4, ensure_ascii=False).encode('utf-8'))
                             index_data[str(obj.path_id)] = file_name
-                            continue
+                            continue # 成功提取为 JSON，跳过后续处理
                     except:
                         pass
 
+                    # 逻辑回归：原版的图片提取
                     if obj.type.name in ["Texture2D", "Sprite"]:
                         data = obj.read()
                         img_io = BytesIO()
@@ -49,6 +87,7 @@ def unpack():
                         file_name = f"Images/{data.name}_{obj.path_id}.png"
                         zf.writestr(file_name, img_io.getvalue())
                         index_data[str(obj.path_id)] = file_name
+                    # 逻辑回归：原版的保底提取
                     else:
                         raw = obj.get_raw_data()
                         file_name = f"Raw/{obj.type.name}_{obj.path_id}.dat"
@@ -89,7 +128,9 @@ def repack():
                     if file_path.endswith('.json'):
                         try:
                             new_tree = json.loads(zf.read(file_path).decode('utf-8'))
-                            obj.save_typetree(new_tree)
+                            # 【核心新增】存入 Unity 前，将展开的对象重新压缩为单行字符串
+                            collapsed_tree = transform_json_tree(new_tree, mode='collapse')
+                            obj.save_typetree(collapsed_tree)
                         except Exception as e:
                             pass
 
