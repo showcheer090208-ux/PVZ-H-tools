@@ -1,5 +1,6 @@
 # app.py
 from flask import Flask
+from extensions import limiter
 from config import Config
 from blueprints.unity import unity_bp
 from blueprints.forum import forum_bp
@@ -8,6 +9,8 @@ from blueprints.deck_editor import deck_editor_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+limiter.init_app(app)
 
 # 注册蓝图
 app.register_blueprint(deck_editor_bp)
