@@ -4,6 +4,7 @@ import UnityPy
 from io import BytesIO
 import json
 import zipfile
+from extensions import limiter
 
 unity_bp = Blueprint('unity', __name__)
 
@@ -46,6 +47,7 @@ def index():
 
 # 2. 独立出来的解包接口
 @unity_bp.route('/unpack', methods=['POST'])
+@limiter.limit("3 per minute")  # 【核心防御】每个 IP 一分钟最多解包 3 次
 def unpack():
     if request.content_length and request.content_length > 10 * 1024 * 1024:
         return render_template('error.html', msg="文件太大啦！解包功能最大支持 10MB 的文件。"), 413
@@ -105,6 +107,7 @@ def unpack():
 
 # 3. 独立出来的打包回填接口
 @unity_bp.route('/repack', methods=['POST'])
+@limiter.limit("3 per minute")  # 【核心防御】每个 IP 一分钟最多打包 3 次
 def repack():
     if request.content_length and request.content_length > 20 * 1024 * 1024:
         return render_template('error.html', msg="文件太大啦！回填功能最大支持总计 20MB 的文件。"), 413
