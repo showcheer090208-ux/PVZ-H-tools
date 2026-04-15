@@ -5,19 +5,16 @@
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 sm:px-6 pb-16 pt-6">
     
-    <!-- 顶部标题区 -->
     <div class="text-center mb-12">
         <div class="inline-flex items-center justify-center p-3 bg-blue-50 rounded-2xl mb-4 shadow-inner">
             <span class="material-symbols-rounded text-blue-600 text-4xl">inventory_2</span>
         </div>
         <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">资源综合管理</h1>
-        <p class="text-gray-500 mt-3 text-sm md:text-base max-w-2xl mx-auto">专业级解包与打包套件。适用于高阶模组制作者提取贴图或修改底层 JSON 数据。</p>
+        <p class="text-gray-500 mt-3 text-sm md:text-base max-w-2xl mx-auto">专业级解包与打包套件。支持单文件提取贴图与修改底层 JSON 数据。</p>
     </div>
 
-    <!-- 核心功能区：PC端双列对称布局，移动端上下堆叠 -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
 
-        <!-- ==================== 左列：解包引擎 ==================== -->
         <div class="bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] hover:-translate-y-1">
             <div class="p-6 md:p-8 flex-grow flex flex-col">
                 <div class="flex items-center mb-6">
@@ -25,7 +22,7 @@
                         <span class="material-symbols-rounded text-blue-600 text-[32px]">unarchive</span>
                     </div>
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">提取解包</h2>
+                        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">单文件解包</h2>
                         <p class="text-xs text-gray-400 font-medium mt-0.5 uppercase tracking-wider">Unpack Engine</p>
                     </div>
                 </div>
@@ -34,7 +31,7 @@
                     上传游戏 Bundle 底包，云端将自动拆解并导出可编辑的 <span class="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-mono text-xs border border-gray-200">JSON</span> 配置文件与 PNG 高清贴图资源。
                 </p>
 
-                <form action="/unpack" method="post" enctype="multipart/form-data" onsubmit="showLoading(this)">
+                <form action="/unpack" method="post" enctype="multipart/form-data" onsubmit="handleAsyncDownload(event, this, '解包提取中')">
                     <div class="relative group mb-6">
                         <div class="absolute inset-0 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 group-hover:bg-blue-50/50 group-hover:border-blue-400 transition-colors pointer-events-none"></div>
                         <input type="file" name="bundle" required 
@@ -49,7 +46,6 @@
             </div>
         </div>
 
-        <!-- ==================== 右列：打包引擎 ==================== -->
         <div class="bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] hover:-translate-y-1 relative">
             
             <div class="p-6 md:p-8 flex-grow flex flex-col">
@@ -58,34 +54,32 @@
                         <span class="material-symbols-rounded text-green-600 text-[32px]">library_add</span>
                     </div>
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">合成回填</h2>
+                        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">单文件打包</h2>
                         <p class="text-xs text-gray-400 font-medium mt-0.5 uppercase tracking-wider">Repack Engine</p>
                     </div>
                 </div>
 
                 <p class="text-sm text-gray-500 mb-8 leading-relaxed">
-                    将你修改好的补丁包注入回原始 Bundle 中。引擎会自动匹配 <code>PathID</code> 并进行无损替换。
+                    将修改好的压缩包注入回单一的原始 Bundle 中。引擎会自动匹配 <code>PathID</code> 进行替换。
                 </p>
 
-                <form action="/repack" method="post" enctype="multipart/form-data" onsubmit="return handleRepack(this)" class="flex-grow flex flex-col">
+                <form action="/repack" method="post" enctype="multipart/form-data" onsubmit="handleAsyncDownload(event, this, '引擎合成中')" class="flex-grow flex flex-col">
                     
                     <div class="space-y-4 mb-8 flex-grow">
-                        <!-- 1. 底包上传 (支持多选) -->
                         <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                            <label class="block text-xs font-bold text-gray-700 mb-2 ml-1">1. 原始 Bundle (基础底包，可多选)</label>
-                            <input type="file" name="original_bundles" multiple required 
+                            <label class="block text-xs font-bold text-gray-700 mb-2 ml-1">1. 原始 Bundle (基础底包，单选)</label>
+                            <input type="file" name="original_bundle" required 
                                    class="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-white file:text-gray-700 file:border file:border-gray-200 hover:file:bg-gray-50 transition cursor-pointer">
                         </div>
 
-                        <!-- 2. 修改包上传 -->
                         <div class="bg-orange-50/50 p-4 rounded-2xl border border-orange-100/50">
                             <label class="block text-xs font-bold text-orange-800 mb-2 ml-1">2. 修改后的 ZIP 补丁包</label>
-                            <input type="file" name="mod_zip" required
+                            <input type="file" name="modified_zip" required accept=".zip"
                                    class="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 transition cursor-pointer">
                         </div>
                     </div>
 
-                    <button type="submit" id="btn-repack" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-lg transition-all transform active:scale-[0.98] flex justify-center items-center">
+                    <button type="submit" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-lg transition-all transform active:scale-[0.98] flex justify-center items-center">
                         <span class="material-symbols-rounded mr-2 text-[22px]">auto_fix_high</span>
                         执行合成并导出
                     </button>
@@ -99,19 +93,68 @@
 
 {% block scripts %}
 <script>
-    function showLoading(formElement) {
+    /**
+     * 异步拦截表单提交：处理大文件下载并重置按钮状态
+     */
+    async function handleAsyncDownload(event, formElement, loadingText) {
+        event.preventDefault(); // 阻止原生表单提交
+        
         const btn = formElement.querySelector('button[type="submit"]');
-        btn.innerHTML = `<span class="material-symbols-rounded animate-spin mr-2 text-[22px]">progress_activity</span> 提取中...`;
-        btn.classList.add('cursor-not-allowed', 'opacity-80');
-        setTimeout(() => { btn.disabled = true; }, 10);
-    }
+        const originalHtml = btn.innerHTML; // 记录按钮原始状态
 
-    function handleRepack(form) {
-        const btn = document.getElementById('btn-repack');
-        btn.innerHTML = `<span class="material-symbols-rounded animate-spin mr-2 text-[22px]">hourglass_empty</span> 引擎重组中...`;
+        // 按钮进入 Loading 状态
+        btn.innerHTML = `<span class="material-symbols-rounded animate-spin mr-2 text-[22px]">progress_activity</span> ${loadingText}...`;
         btn.classList.add('opacity-80', 'cursor-not-allowed');
-        setTimeout(() => { btn.disabled = true; }, 10);
-        return true;
+        btn.disabled = true;
+
+        try {
+            const formData = new FormData(formElement);
+            const response = await fetch(formElement.action, {
+                method: formElement.method,
+                body: formData
+            });
+
+            if (response.ok) {
+                // 如果后端返回成功，转换为 Blob 触发浏览器下载
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = downloadUrl;
+                
+                // 尝试从响应头读取服务器指定的文件名
+                let filename = 'download.zip';
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition && disposition.indexOf('attachment') !== -1) {
+                    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                    if (matches != null && matches[1]) {
+                        filename = matches[1].replace(/['"]/g, '');
+                    }
+                }
+                
+                a.download = decodeURIComponent(filename);
+                document.body.appendChild(a);
+                a.click();
+                
+                // 清理内存
+                window.URL.revokeObjectURL(downloadUrl);
+                a.remove();
+            } else {
+                // 如果遇到错误（如超过大小限制、解包失败），直接覆盖页面显示 Flask 错误模板
+                const errorHtml = await response.text();
+                document.open();
+                document.write(errorHtml);
+                document.close();
+            }
+        } catch (error) {
+            console.error('上传/下载异常:', error);
+            alert("网络连接异常或文件过大导致超时，请重试。");
+        } finally {
+            // 无论成功还是报错，恢复按钮状态
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('opacity-80', 'cursor-not-allowed');
+            btn.disabled = false;
+        }
     }
 </script>
 {% endblock %}
