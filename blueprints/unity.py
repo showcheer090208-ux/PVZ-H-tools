@@ -119,19 +119,42 @@ def repack():
         env = UnityPy.load(orig_file.read())
         zip_data = BytesIO(mod_zip.read())
         with zipfile.ZipFile(zip_data, 'r') as zf:
-            index_data = json.loads(zf.read("_index.json").decode('utf-8'))
+            # 1. 智能寻找 _index.json (解决 MT 管理器等手机压缩软件的“目录套娃”问题)
+            namelist = zf.namelist()
+            index_path_in_zip = None
+            for name in namelist:
+                # 兼容不同操作系统的路径分隔符
+                normalized_name = name.replace('\\', '/')
+                if normalized_name.endswith('_index.json') and normalized_name.split('/')[-1] == '_index.json':
+                    index_path_in_zip = name
+                    break
             
+            if not index_path_in_zip:
+                raise Exception("ZIP 包中完全没有找到 _index.json 文件！请确认压缩包内容。")
+            
+            # 2. 计算前缀：如果文件在 "文件夹A/_index.json"，前缀就是 "文件夹A/"
+            normalized_index_path = index_path_in_zip.replace('\\', '/')
+            prefix = normalized_index_path[:-11] # 11 是 "_index.json" 的长度
+            
+            # 3. 读取索引数据
+            index_data = json.loads(zf.read(index_path_in_zip).decode('utf-8'))
+            
+            # 4. 执行回填逻辑
             for obj in env.objects:
                 path_id_str = str(obj.path_id)
                 if path_id_str in index_data:
                     file_path = index_data[path_id_str]
+                    
                     if file_path.endswith('.json'):
                         try:
-                            new_tree = json.loads(zf.read(file_path).decode('utf-8'))
-                            # 【核心新增】存入 Unity 前，将展开的对象重新压缩为单行字符串
+                            # 拼接真实路径：前缀 + 索引记录的路径
+                            actual_file_path = prefix + file_path.replace('\\', '/')
+                            
+                            new_tree = json.loads(zf.read(actual_file_path).decode('utf-8'))
                             collapsed_tree = transform_json_tree(new_tree, mode='collapse')
                             obj.save_typetree(collapsed_tree)
                         except Exception as e:
+                            print(f"回填 {file_path} 失败，可能文件损坏或路径错误: {e}")
                             pass
 
         out_bundle = BytesIO()
@@ -140,4 +163,4 @@ def repack():
         
         return send_file(out_bundle, mimetype='application/octet-stream', as_attachment=True, download_name=f"modded_{orig_file.filename}")
     except Exception as e:
-         return render_template('error.html', msg=f"打包失败！请检查 ZIP 包内的 _index.json 是否被破坏。错误详情: {e}"), 500
+         return render_template('error.html', msg=f"打包失败！请检查文件格式。错误详情: {e}"), 500
