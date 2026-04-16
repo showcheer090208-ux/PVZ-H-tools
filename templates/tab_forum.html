@@ -1,82 +1,197 @@
 {% extends "base.html" %}
-
-{% block title %}留言板 - PVZH 工坊{% endblock %}
+{% block title %}社区 - PVZH 云端工坊{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto space-y-8 pb-10">
-    
-    <div class="text-center mb-8">
-        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">工坊交流社区</h1>
-        <p class="text-gray-500 mt-2">分享你的魔改创意与经验</p>
+<div id="forum-app" class="py-6 md:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" v-cloak>
+    <div class="mb-8 text-center lg:text-left">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mb-2">工坊交流社区</h1>
+        <p class="text-gray-500">探索卡组、分享魔改心得，或者在此灌水。</p>
     </div>
 
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 sm:p-8 hover:shadow-md transition-shadow duration-300">
-        <div class="flex items-center mb-6">
-            <div class="bg-blue-50 p-2.5 rounded-xl mr-4">
-                <span class="material-symbols-rounded text-blue-600">edit_square</span>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-8">
+        
+        <!-- 左侧导航 -->
+        <div class="md:col-span-1 space-y-6">
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 hidden md:block sticky top-24">
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 ml-2">探索板块</h2>
+                <nav class="space-y-1.5">
+                    <button @click="currentCategoryId = null" 
+                            :class="currentCategoryId === null ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'"
+                            class="w-full flex items-center px-4 py-3 rounded-2xl transition-colors">
+                        <span class="material-symbols-rounded mr-3 text-[22px]">explore</span> 全部动态
+                    </button>
+                    <button v-for="cat in categories" :key="cat.id" @click="currentCategoryId = cat.id"
+                            :class="currentCategoryId === cat.id ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'"
+                            class="w-full flex items-center px-4 py-3 rounded-2xl transition-colors">
+                        <span class="material-symbols-rounded mr-3 text-[22px]" v-text="cat.icon"></span> <span v-text="cat.name"></span>
+                    </button>
+                </nav>
             </div>
-            <h2 class="text-xl font-bold text-gray-800">留下你的足迹</h2>
+            <div class="md:hidden flex space-x-3 overflow-x-auto no-scrollbar pb-2">
+                <button @click="currentCategoryId = null" :class="currentCategoryId === null ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200'" class="whitespace-nowrap flex items-center px-5 py-2.5 rounded-full font-medium transition-all">全部动态</button>
+                <button v-for="cat in categories" :key="cat.id" @click="currentCategoryId = cat.id" :class="currentCategoryId === cat.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200'" class="whitespace-nowrap flex items-center px-5 py-2.5 rounded-full font-medium transition-all">
+                    <span class="material-symbols-rounded mr-1.5 text-[18px]" v-text="cat.icon"></span><span v-text="cat.name"></span>
+                </button>
+            </div>
         </div>
 
-        <form action="/api/comment" method="post" class="space-y-5" onsubmit="showLoading(this)">
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2 ml-1">你的昵称</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <span class="material-symbols-rounded text-gray-400 text-sm">person</span>
+        <!-- 右侧内容 -->
+        <div class="md:col-span-3 space-y-6">
+            
+            {% if current_user %}
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 sm:p-6 transition-all focus-within:shadow-md focus-within:border-blue-200">
+                <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-400 flex-shrink-0 flex items-center justify-center text-white font-bold uppercase shadow-sm">
+                        {{ current_user.username[0] }}
                     </div>
-                    <input type="text" name="username" placeholder="匿名植物" maxlength="20"
-                           class="w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none">
+                    <div class="flex-grow space-y-3">
+                        <input type="text" v-model="newPost.title" placeholder="起个响亮的标题..." maxlength="50" class="w-full text-lg font-bold bg-transparent border-none focus:ring-0 p-0 text-gray-900 placeholder-gray-400 outline-none">
+                        <textarea v-model="newPost.content" placeholder="分享你的想法、模组或疑问..." rows="3" maxlength="1000" class="w-full bg-gray-50 border border-gray-100 rounded-2xl p-3 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all outline-none resize-none text-sm text-gray-700"></textarea>
+                        
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div class="flex items-center space-x-2 w-full sm:w-auto">
+                                <span class="text-xs font-semibold text-gray-500 pl-1">发布到：</span>
+                                <select v-model="newPost.categoryId" class="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2 outline-none cursor-pointer">
+                                    <option value="" disabled>请选择板块...</option>
+                                    <option v-for="cat in categories" :value="cat.id" :key="cat.id" v-text="cat.name"></option>
+                                </select>
+                            </div>
+                            <button @click="submitPost" :disabled="isSubmitting || !newPost.title || !newPost.content || !newPost.categoryId" :class="(isSubmitting || !newPost.title || !newPost.content || !newPost.categoryId) ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95 shadow-sm'" class="w-full sm:w-auto font-bold py-2.5 px-6 rounded-xl transition duration-200 flex justify-center items-center">
+                                <span v-if="isSubmitting" class="material-symbols-rounded animate-spin mr-1.5 text-[20px]">progress_activity</span>
+                                <span v-else class="material-symbols-rounded mr-1.5 text-[20px]">send</span> 发布
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2 ml-1">留言内容</label>
-                <textarea name="content" required placeholder="想说点什么？支持分享模组心得哦..." rows="4" maxlength="500"
-                          class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none resize-none"></textarea>
+            {% else %}
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-3xl p-6 sm:p-8 border border-blue-100 text-center flex flex-col items-center justify-center border-dashed">
+                <span class="material-symbols-rounded text-blue-300 text-5xl mb-3">lock</span>
+                <h3 class="text-lg font-bold text-gray-800 mb-2">加入讨论</h3>
+                <p class="text-sm text-gray-500 mb-5">登录后即可发帖、回复，与植物们交流互动</p>
+                <a href="/login" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-full transition duration-200 shadow-sm active:scale-95">前往登录</a>
             </div>
-            
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-2xl transition duration-200 shadow-sm flex justify-center items-center group active:scale-[0.98]">
-                <span class="material-symbols-rounded mr-2 group-hover:-translate-y-0.5 transition-transform">send</span>
-                发布留言
-            </button>
-        </form>
-    </div>
+            {% endif %}
 
-    <div class="space-y-4">
-        {% for comment in comments %}
-        <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:border-blue-100 hover:shadow-md transition-all">
-            <div class="flex justify-between items-start mb-3">
-                <div class="flex items-center">
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-100 to-blue-50 flex items-center justify-center mr-3 border border-blue-100">
-                        <span class="material-symbols-rounded text-blue-600 text-lg">face</span>
-                    </div>
-                    <div>
-                        <div class="font-bold text-gray-900">{{ comment.username }}</div>
-                        <div class="text-xs text-gray-400 font-medium">{{ comment.formatted_time }}</div>
-                    </div>
+            {% raw %}
+            <div class="space-y-4">
+                <transition-group name="list">
+                    <a v-for="post in filteredPosts" :key="post.id" :href="'/post/' + post.id" class="block bg-white p-5 md:p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group cursor-pointer">
+                        
+                        <div v-if="post.is_pinned" class="flex items-center text-orange-500 text-xs font-bold mb-2">
+                            <span class="material-symbols-rounded text-[14px] mr-1">push_pin</span> 置顶推荐
+                        </div>
+
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3 border border-gray-200 text-gray-500 font-bold uppercase overflow-hidden">
+                                    <template v-if="post.profiles.avatar_url"><img :src="post.profiles.avatar_url" class="w-full h-full object-cover"></template>
+                                    <template v-else>{{ post.profiles.username[0] }}</template>
+                                </div>
+                                <div>
+                                    <!-- 【核心改动】荣誉勋章显示逻辑 -->
+                                    <div class="flex items-center space-x-1">
+                                        <span class="font-bold text-gray-900 text-sm md:text-base">{{ post.profiles.username }}</span>
+                                        <template v-if="post.profiles.honor_title">
+                                            <div class="flex items-center bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md border border-amber-100 ml-1">
+                                                <span class="material-symbols-rounded text-[14px] mr-0.5">{{ post.profiles.honor_icon || 'military_tech' }}</span>
+                                                <span class="text-[10px] font-bold">{{ post.profiles.honor_title }}</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div class="text-[11px] md:text-xs text-gray-400 font-medium mt-0.5">
+                                        <span>{{ post.formatted_time }}</span> <span class="mx-1.5">&middot;</span>
+                                        <span class="text-blue-500 flex items-center inline-flex">
+                                            <span class="material-symbols-rounded text-[12px] mr-0.5">{{ post.categories.icon }}</span> {{ post.categories.name }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pl-0 md:ml-13">
+                            <div class="flex items-center justify-between">
+                                <h3 class="font-bold text-gray-900 text-base md:text-lg group-hover:text-blue-600 transition-colors">{{ post.title }}</h3>
+                                <!-- 如果全局变量中 current_user 是管理员，显示删除按钮 -->
+                                <button v-if="currentUser && currentUser.is_admin" @click.stop.prevent="deletePost(post.id)" class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 ml-2">
+                                    <span class="material-symbols-rounded text-[18px]">delete_forever</span>
+                                </button>
+                            </div>
+                            <p class="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap line-clamp-3">{{ post.content }}</p>
+                        </div>
+                    </a>
+                </transition-group>
+                <div v-if="filteredPosts.length === 0" class="text-center py-16 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                    <span class="material-symbols-rounded text-gray-200 text-6xl mb-3">inbox</span>
+                    <p class="text-gray-400 font-medium">这里空空如也，快来发布第一篇内容吧！</p>
                 </div>
             </div>
-            <div class="pl-13 pt-1 text-gray-700 leading-relaxed whitespace-pre-wrap text-[15px]">{{ comment.content }}</div>
+            {% endraw %}
+
         </div>
-        {% else %}
-        <div class="text-center py-16 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
-            <span class="material-symbols-rounded text-gray-300 text-6xl mb-3">potted_plant</span>
-            <p class="text-gray-500 font-medium">工坊刚开张，快来抢第一个沙发吧！</p>
-        </div>
-        {% endfor %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<style>
+.list-enter-active, .list-leave-active { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+.list-enter-from, .list-leave-to { opacity: 0; transform: translateY(20px); }
+[v-cloak] { display: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.md\:ml-13 { margin-left: 0; }
+@media (min-width: 768px) { .md\:ml-13 { margin-left: 3.25rem; } }
+</style>
+
 <script>
-    // 提交时的加载动画防抖处理
-    function showLoading(formElement) {
-        const btn = formElement.querySelector('button[type="submit"]');
-        btn.innerHTML = `<span class="material-symbols-rounded animate-spin mr-2">progress_activity</span> 发布中...`;
-        btn.classList.add('cursor-not-allowed', 'opacity-80');
-        setTimeout(() => { btn.disabled = true; }, 10);
+const { createApp, ref, computed } = Vue;
+
+const initialCategories = {{ categories | tojson | safe }};
+const initialPosts = {{ posts | tojson | safe }};
+// 将后端的 current_user 传入 Vue，方便前端判断管理员权限
+const currentUserData = {{ current_user | tojson | safe if current_user else 'null' }};
+
+createApp({
+    setup() {
+        const categories = ref(initialCategories);
+        const posts = ref(initialPosts);
+        const currentCategoryId = ref(null);
+        const currentUser = ref(currentUserData);
+
+        const newPost = ref({ title: '', content: '', categoryId: '' });
+        const isSubmitting = ref(false);
+
+        const filteredPosts = computed(() => {
+            if (currentCategoryId.value === null) return posts.value;
+            return posts.value.filter(p => p.category_id === currentCategoryId.value);
+        });
+
+        const submitPost = async () => {
+            if (!newPost.value.title || !newPost.value.content || !newPost.value.categoryId) return;
+            isSubmitting.value = true;
+            try {
+                const response = await fetch('/api/post', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: newPost.value.title, content: newPost.value.content, category_id: newPost.value.categoryId })
+                });
+                const result = await response.json();
+                if (response.ok) { window.location.reload(); } else { alert(result.message || '发布失败'); }
+            } catch (error) { alert('连接服务器失败'); } finally { isSubmitting.value = false; }
+        };
+
+        const deletePost = async (postId) => {
+            if (!confirm('确定要删除这篇帖子吗？此操作不可撤销。')) return;
+            try {
+                const response = await fetch(`/api/post/delete/${postId}`, { method: 'DELETE' });
+                if (response.ok) { posts.value = posts.value.filter(p => p.id !== postId); } 
+                else { alert('删除失败，可能权限不足'); }
+            } catch (error) { alert('网络错误'); }
+        };
+
+        return { categories, posts, currentUser, currentCategoryId, filteredPosts, newPost, isSubmitting, submitPost, deletePost };
     }
+}).mount('#forum-app');
 </script>
 {% endblock %}

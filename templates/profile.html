@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}个人中心 - PVZH 云端工坊{% endblock %}
+
+{% block content %}
+<div id="profile-app" class="max-w-2xl mx-auto py-10 px-4" v-cloak>
+    {% if current_user %}
+        <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 text-center relative overflow-hidden">
+            <!-- 装饰背景 -->
+            <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-blue-50 to-white"></div>
+
+            <!-- 头像区 -->
+            <div class="relative z-10 w-24 h-24 mx-auto rounded-full bg-gradient-to-tr from-blue-500 to-indigo-400 flex items-center justify-center text-white text-4xl font-bold uppercase mb-4 shadow-md border-4 border-white">
+                {{ current_user.username[0] }}
+            </div>
+            
+            <!-- 荣誉勋章展示 -->
+            {% if current_user.honor_title %}
+            <div class="inline-flex items-center bg-amber-50 text-amber-600 px-3 py-1 rounded-full border border-amber-100 mb-3 shadow-sm">
+                <span class="material-symbols-rounded text-[18px] mr-1">{{ current_user.honor_icon or 'military_tech' }}</span>
+                <span class="text-sm font-bold">{{ current_user.honor_title }}</span>
+            </div>
+            {% endif %}
+
+            <h1 class="text-2xl font-extrabold text-gray-900 mb-1">{{ current_user.username }}</h1>
+            <p class="text-gray-500 text-sm mb-8">注册时间：{{ current_user.created_at[:10] }}</p>
+            
+            <!-- 修改昵称表单 (Vue接管) -->
+            {% raw %}
+            <div class="bg-gray-50 rounded-2xl p-6 text-left border border-gray-100 mb-8 max-w-sm mx-auto">
+                <label class="block text-sm font-bold text-gray-700 mb-2">修改专属昵称</label>
+                <div class="flex gap-2">
+                    <input type="text" v-model="newUsername" placeholder="输入新昵称" maxlength="15"
+                           class="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                    <button @click="updateUsername" :disabled="isUpdating || !newUsername || newUsername === originalUsername"
+                            :class="(isUpdating || !newUsername || newUsername === originalUsername) ? 'bg-gray-200 text-gray-400' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm active:scale-95'"
+                            class="px-4 py-2 rounded-xl font-bold transition-all">
+                        <span v-if="isUpdating" class="material-symbols-rounded animate-spin text-[18px] block">progress_activity</span>
+                        <span v-else>保存</span>
+                    </button>
+                </div>
+                <p v-if="errorMessage" class="text-red-500 text-xs mt-2 font-medium flex items-center">
+                    <span class="material-symbols-rounded text-[14px] mr-1">error</span> {{ errorMessage }}
+                </p>
+                <p v-if="successMessage" class="text-green-500 text-xs mt-2 font-medium flex items-center">
+                    <span class="material-symbols-rounded text-[14px] mr-1">check_circle</span> {{ successMessage }}
+                </p>
+            </div>
+            {% endraw %}
+            
+            <!-- 底部退出 -->
+            <div class="border-t border-gray-100 pt-6">
+                <a href="/logout" class="inline-flex items-center justify-center w-full sm:w-auto px-6 py-3 bg-red-50 text-red-600 font-bold rounded-2xl hover:bg-red-100 transition-colors">
+                    <span class="material-symbols-rounded mr-2">logout</span> 退出登录
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <!-- 未登录的 Fallback，虽然理论上拦截器会拦住 -->
+        <div class="text-center py-20">
+            <h2 class="text-xl font-bold text-gray-900 mb-2">未登录</h2>
+            <a href="/login" class="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold">去登录</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>[v-cloak] { display: none; }</style>
+<script>
+const { createApp, ref } = Vue;
+
+// 获取 Jinja2 注入的当前用户名
+const currentUsername = "{{ current_user.username if current_user else '' }}";
+
+createApp({
+    setup() {
+        const originalUsername = ref(currentUsername);
+        const newUsername = ref(currentUsername);
+        const isUpdating = ref(false);
+        const errorMessage = ref('');
+        const successMessage = ref('');
+
+        const updateUsername = async () => {
+            if (!newUsername.value || newUsername.value === originalUsername.value) return;
+            
+            isUpdating.value = true;
+            errorMessage.value = '';
+            successMessage.value = '';
+            
+            try {
+                const response = await fetch('/api/profile/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: newUsername.value })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    successMessage.value = '修改成功！';
+                    originalUsername.value = newUsername.value;
+                    // 延迟刷新以更新顶部导航栏的头像
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    errorMessage.value = result.message || '修改失败';
+                }
+            } catch (error) {
+                errorMessage.value = '网络连接异常';
+            } finally {
+                isUpdating.value = false;
+            }
+        };
+
+        return { originalUsername, newUsername, isUpdating, errorMessage, successMessage, updateUsername };
+    }
+}).mount('#profile-app');
+</script>
+{% endblock %}
