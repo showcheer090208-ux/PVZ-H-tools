@@ -14,10 +14,8 @@ def admin_required(f):
             return jsonify({"status": "error", "message": "权限不足"}), 403
         
         try:
-            # 1. 验证用户身份
             user_res = supabase.auth.get_user(token)
             uid = user_res.user.id
-            # 2. 检查 profiles 表里的 is_admin 字段
             profile = supabase.table("profiles").select("is_admin").eq("id", uid).single().execute()
             
             if not profile.data or not profile.data.get('is_admin'):
@@ -48,8 +46,10 @@ def login():
         elif action == 'login':
             res = supabase.auth.sign_in_with_password({"email": email, "password": password})
             token = res.session.access_token
+            
             response = make_response(redirect('/forum'))
-            response.set_cookie('access_token', token, httponly=True, max_age=60*60*24*7)
+            # 🚨 核心修复 1：加上 path='/' 确保 Cookie 是全站级别的
+            response.set_cookie('access_token', token, httponly=True, max_age=60*60*24*7, path='/')
             return response
             
     except Exception as e:
@@ -59,16 +59,17 @@ def login():
 # ==================== 路由：退出登录 ====================
 @auth_bp.route('/logout')
 def logout():
-    response = make_response(redirect('/forum'))
-    response.delete_cookie('access_token')
+    response = make_response(redirect('/login'))
+    # 🚨 核心修复 2：删除时也必须带上 path='/'，否则删不掉！
+    response.delete_cookie('access_token', path='/')
     return response
 
-# ==================== 路由：个人中心页面 ====================
+# ==================== 路由：个人中心 ====================
 @auth_bp.route('/profile')
 def profile():
     return render_template('profile.html')
 
-# ==================== API：更新自定义昵称 ====================
+# ==================== API：更新昵称 ====================
 @auth_bp.route('/api/profile/update', methods=['POST'])
 def update_profile():
     token = request.cookies.get('access_token')
@@ -78,20 +79,16 @@ def update_profile():
     try:
         user_res = supabase.auth.get_user(token)
         uid = user_res.user.id
-        
         data = request.json
         new_username = data.get('username', '').strip()
         
-        # 1. 基础长度校验
         if len(new_username) < 2 or len(new_username) > 15:
             return jsonify({"status": "error", "message": "昵称长度需在 2-15 之间"}), 400
 
-        # 2. 查重逻辑：检查是否有其他人（除了自己）用了这个名字
         existing = supabase.table("profiles").select("id").eq("username", new_username).neq("id", uid).execute()
         if existing.data:
             return jsonify({"status": "error", "message": "该昵称已被占用，请换一个吧"}), 400
 
-        # 3. 写入数据库
         supabase.table("profiles").update({"username": new_username}).eq("id", uid).execute()
         return jsonify({"status": "success", "message": "昵称修改成功"}), 200
         

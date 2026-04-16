@@ -16,7 +16,6 @@ def index():
         categories = []
 
     try:
-        # 【核心修改点】增加 honor_title 和 honor_icon 的拉取
         post_res = supabase.table("posts") \
             .select("*, profiles:profiles!posts_author_id_fkey(username, avatar_url, honor_title, honor_icon), categories(name, icon)") \
             .order("is_pinned", desc=True) \
@@ -34,7 +33,6 @@ def index():
             except Exception:
                 post['formatted_time'] = post['created_at'][:10]
     except Exception as e:
-        print(f"帖子读取失败: {e}")
         posts = []
         
     return render_template('tab_forum.html', current_tab='forum', categories=categories, posts=posts)
@@ -43,7 +41,6 @@ def index():
 @forum_bp.route('/post/<int:post_id>')
 def post_detail(post_id):
     try:
-        # 1. 查主帖（拉取荣誉勋章信息）
         post_res = supabase.table("posts") \
             .select("*, profiles:profiles!posts_author_id_fkey(username, avatar_url, honor_title, honor_icon), categories(name, icon)") \
             .eq("id", post_id) \
@@ -55,7 +52,6 @@ def post_detail(post_id):
         
         supabase.table("posts").update({"view_count": post.get("view_count", 0) + 1}).eq("id", post_id).execute()
 
-        # 2. 查回复（同样拉取荣誉勋章信息）
         comments_res = supabase.table("post_comments") \
             .select("*, profiles(username, avatar_url, honor_title, honor_icon)") \
             .eq("post_id", post_id) \
@@ -75,7 +71,6 @@ def post_detail(post_id):
             c['formatted_time'] = format_time(c['created_at'])
 
     except Exception as e:
-        print(f"详情页加载失败: {e}")
         return render_template('error.html', message="服务器异常"), 500
 
     return render_template('tab_post_detail.html', post=post, comments=comments)
@@ -95,6 +90,7 @@ def create_post():
         category_id = data.get('category_id')
         title = data.get('title', '').strip()
         content = data.get('content', '').strip()
+        image_urls = data.get('image_urls', [])
         
         if not title or not content or not category_id:
             return jsonify({"status": "error", "message": "标题、内容和分区不能为空"}), 400
@@ -103,7 +99,8 @@ def create_post():
             "category_id": category_id,
             "author_id": user_id,
             "title": title[:50],
-            "content": content[:1000]
+            "content": content[:1000],
+            "image_urls": image_urls
         }).execute()
         return jsonify({"status": "success", "message": "发布成功！"}), 200
         
@@ -118,9 +115,7 @@ def create_comment():
         return jsonify({"status": "error", "message": "请先登录"}), 401
         
     try:
-        user_res = supabase.auth.get_user(token)
-        user_id = user_res.user.id
-        
+        user_id = supabase.auth.get_user(token).user.id
         data = request.json
         post_id = data.get('post_id')
         content = data.get('content', '').strip()
@@ -136,7 +131,7 @@ def create_comment():
             "content": content[:1000]
         }).execute()
         return jsonify({"status": "success"}), 200
-    except Exception as e:
+    except:
         return jsonify({"status": "error", "message": "回复失败"}), 500
     
 # ==================== API：管理员删帖 ====================

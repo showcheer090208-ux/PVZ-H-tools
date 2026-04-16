@@ -9,20 +9,13 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-8">
-        
         <!-- 左侧导航 -->
         <div class="md:col-span-1 space-y-6">
             <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 hidden md:block sticky top-24">
                 <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 ml-2">探索板块</h2>
                 <nav class="space-y-1.5">
-                    <button @click="currentCategoryId = null" 
-                            :class="currentCategoryId === null ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'"
-                            class="w-full flex items-center px-4 py-3 rounded-2xl transition-colors">
-                        <span class="material-symbols-rounded mr-3 text-[22px]">explore</span> 全部动态
-                    </button>
-                    <button v-for="cat in categories" :key="cat.id" @click="currentCategoryId = cat.id"
-                            :class="currentCategoryId === cat.id ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'"
-                            class="w-full flex items-center px-4 py-3 rounded-2xl transition-colors">
+                    <button @click="currentCategoryId = null" :class="currentCategoryId === null ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center px-4 py-3 rounded-2xl transition-colors"><span class="material-symbols-rounded mr-3 text-[22px]">explore</span> 全部动态</button>
+                    <button v-for="cat in categories" :key="cat.id" @click="currentCategoryId = cat.id" :class="currentCategoryId === cat.id ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center px-4 py-3 rounded-2xl transition-colors">
                         <span class="material-symbols-rounded mr-3 text-[22px]" v-text="cat.icon"></span> <span v-text="cat.name"></span>
                     </button>
                 </nav>
@@ -35,7 +28,6 @@
             </div>
         </div>
 
-        <!-- 右侧内容 -->
         <div class="md:col-span-3 space-y-6">
             
             {% if current_user %}
@@ -46,19 +38,36 @@
                     </div>
                     <div class="flex-grow space-y-3">
                         <input type="text" v-model="newPost.title" placeholder="起个响亮的标题..." maxlength="50" class="w-full text-lg font-bold bg-transparent border-none focus:ring-0 p-0 text-gray-900 placeholder-gray-400 outline-none">
-                        <textarea v-model="newPost.content" placeholder="分享你的想法、模组或疑问..." rows="3" maxlength="1000" class="w-full bg-gray-50 border border-gray-100 rounded-2xl p-3 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all outline-none resize-none text-sm text-gray-700"></textarea>
+                        <textarea v-model="newPost.content" placeholder="分享你的卡组、截图或疑问..." rows="3" maxlength="1000" class="w-full bg-gray-50 border border-gray-100 rounded-2xl p-3 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all outline-none resize-none text-sm text-gray-700"></textarea>
                         
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                            <div class="flex items-center space-x-2 w-full sm:w-auto">
-                                <span class="text-xs font-semibold text-gray-500 pl-1">发布到：</span>
+                        <div v-if="newPost.imageUrls.length > 0" class="flex flex-wrap gap-3 mt-2">
+                            <div v-for="(url, idx) in newPost.imageUrls" :key="idx" class="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 shadow-sm group">
+                                <img :src="url" class="w-full h-full object-cover">
+                                <button @click="removeImage(idx)" class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span class="material-symbols-rounded text-[14px]">close</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2">
+                            <div class="flex items-center gap-3 w-full sm:w-auto">
                                 <select v-model="newPost.categoryId" class="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2 outline-none cursor-pointer">
-                                    <option value="" disabled>请选择板块...</option>
+                                    <option value="" disabled>选择板块...</option>
                                     <option v-for="cat in categories" :value="cat.id" :key="cat.id" v-text="cat.name"></option>
                                 </select>
+
+                                <input type="file" ref="fileInput" multiple accept="image/jpeg, image/png, image/webp" class="hidden" @change="handleImageUpload">
+                                <button @click="$refs.fileInput.click()" type="button" class="flex items-center text-gray-500 hover:text-blue-600 transition-colors bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200 text-sm font-medium">
+                                    <span class="material-symbols-rounded text-[18px] mr-1">image</span> 添加图片
+                                </button>
                             </div>
-                            <button @click="submitPost" :disabled="isSubmitting || !newPost.title || !newPost.content || !newPost.categoryId" :class="(isSubmitting || !newPost.title || !newPost.content || !newPost.categoryId) ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95 shadow-sm'" class="w-full sm:w-auto font-bold py-2.5 px-6 rounded-xl transition duration-200 flex justify-center items-center">
-                                <span v-if="isSubmitting" class="material-symbols-rounded animate-spin mr-1.5 text-[20px]">progress_activity</span>
-                                <span v-else class="material-symbols-rounded mr-1.5 text-[20px]">send</span> 发布
+                            
+                            <!-- 🚨 修复 Jinja2/Vue 冲突：使用 v-text 代替大括号 -->
+                            <button @click="submitPost" :disabled="isSubmitting || !newPost.title || !newPost.content || !newPost.categoryId || isUploadingImages" :class="(isSubmitting || !newPost.title || !newPost.content || !newPost.categoryId || isUploadingImages) ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95 shadow-sm'" class="w-full sm:w-auto font-bold py-2.5 px-6 rounded-xl transition duration-200 flex justify-center items-center">
+                                <span v-if="isSubmitting || isUploadingImages" class="material-symbols-rounded animate-spin mr-1.5 text-[20px]">progress_activity</span>
+                                <span v-else class="material-symbols-rounded mr-1.5 text-[20px]">send</span> 
+                                <span v-if="isUploadingImages">压缩上传中...</span>
+                                <span v-else>发布</span>
                             </button>
                         </div>
                     </div>
@@ -68,7 +77,7 @@
             <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-3xl p-6 sm:p-8 border border-blue-100 text-center flex flex-col items-center justify-center border-dashed">
                 <span class="material-symbols-rounded text-blue-300 text-5xl mb-3">lock</span>
                 <h3 class="text-lg font-bold text-gray-800 mb-2">加入讨论</h3>
-                <p class="text-sm text-gray-500 mb-5">登录后即可发帖、回复，与植物们交流互动</p>
+                <p class="text-sm text-gray-500 mb-5">登录后即可发帖、配图，与植物们交流互动</p>
                 <a href="/login" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-full transition duration-200 shadow-sm active:scale-95">前往登录</a>
             </div>
             {% endif %}
@@ -89,7 +98,6 @@
                                     <template v-else>{{ post.profiles.username[0] }}</template>
                                 </div>
                                 <div>
-                                    <!-- 【核心改动】荣誉勋章显示逻辑 -->
                                     <div class="flex items-center space-x-1">
                                         <span class="font-bold text-gray-900 text-sm md:text-base">{{ post.profiles.username }}</span>
                                         <template v-if="post.profiles.honor_title">
@@ -110,14 +118,28 @@
                         </div>
 
                         <div class="pl-0 md:ml-13">
-                            <div class="flex items-center justify-between">
+                            <div class="flex items-center justify-between mb-1.5">
                                 <h3 class="font-bold text-gray-900 text-base md:text-lg group-hover:text-blue-600 transition-colors">{{ post.title }}</h3>
-                                <!-- 如果全局变量中 current_user 是管理员，显示删除按钮 -->
                                 <button v-if="currentUser && currentUser.is_admin" @click.stop.prevent="deletePost(post.id)" class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 ml-2">
                                     <span class="material-symbols-rounded text-[18px]">delete_forever</span>
                                 </button>
                             </div>
-                            <p class="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap line-clamp-3">{{ post.content }}</p>
+                            <p class="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap line-clamp-3 mb-3">{{ post.content }}</p>
+                            
+                            <div v-if="post.image_urls && post.image_urls.length > 0" class="flex gap-2 mb-2">
+                                <div v-for="(img, idx) in post.image_urls.slice(0, 3)" :key="idx" class="w-24 h-24 rounded-xl overflow-hidden border border-gray-100">
+                                    <img :src="img" class="w-full h-full object-cover">
+                                </div>
+                                <div v-if="post.image_urls.length > 3" class="w-24 h-24 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 font-bold border border-gray-200">
+                                    +{{ post.image_urls.length - 3 }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="pl-0 md:ml-13 mt-3 flex items-center space-x-5 text-gray-400">
+                            <div class="flex items-center text-xs hover:text-blue-500 transition-colors">
+                                <span class="material-symbols-rounded text-[18px] mr-1">chat_bubble</span> 评论
+                            </div>
                         </div>
                     </a>
                 </transition-group>
@@ -127,13 +149,14 @@
                 </div>
             </div>
             {% endraw %}
-
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 .list-enter-active, .list-leave-active { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
 .list-enter-from, .list-leave-to { opacity: 0; transform: translateY(20px); }
@@ -145,12 +168,36 @@
 </style>
 
 <script>
-const { createApp, ref, computed } = Vue;
-
+// 渲染 Jinja2 变量
 const initialCategories = {{ categories | tojson | safe }};
 const initialPosts = {{ posts | tojson | safe }};
-// 将后端的 current_user 传入 Vue，方便前端判断管理员权限
-const currentUserData = {{ current_user | tojson | safe if current_user else 'null' }};
+const supabaseUrl = "{{ supabase_url }}";
+const supabaseKey = "{{ supabase_key }}";
+
+// 🚨 接收后端传来的通行证
+const accessToken = "{{ access_token if access_token else '' }}";
+
+{% if current_user %}
+const currentUserData = {{ current_user | tojson | safe }};
+{% else %}
+const currentUserData = null;
+{% endif %}
+
+// 🚨 【核心修复】如果用户已登录，就把 Token 放进全局请求头里
+const supabaseOptions = accessToken ? {
+    global: {
+        headers: {
+            Authorization: `Bearer ${accessToken}`
+        }
+    }
+} : {};
+
+// 初始化带身份认证的客户端
+const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey, supabaseOptions);
+
+// --- 开启 raw 模式：以下代码交由 Vue 接管 ---
+{% raw %}
+const { createApp, ref, computed } = Vue;
 
 createApp({
     setup() {
@@ -159,13 +206,72 @@ createApp({
         const currentCategoryId = ref(null);
         const currentUser = ref(currentUserData);
 
-        const newPost = ref({ title: '', content: '', categoryId: '' });
+        const newPost = ref({ title: '', content: '', categoryId: '', imageUrls: [] });
         const isSubmitting = ref(false);
+        const isUploadingImages = ref(false); 
 
         const filteredPosts = computed(() => {
             if (currentCategoryId.value === null) return posts.value;
             return posts.value.filter(p => p.category_id === currentCategoryId.value);
         });
+
+        const compressImage = (file) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 1200;
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.7);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        const handleImageUpload = async (event) => {
+            const files = event.target.files;
+            if (files.length === 0) return;
+            
+            isUploadingImages.value = true;
+            try {
+                for (let file of files) {
+                    const compressedBlob = await compressImage(file);
+                    const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.webp`;
+                    const filePath = `post_images/${fileName}`;
+
+                    const { error: uploadError } = await supabaseClient.storage
+                        .from('forum-images')
+                        .upload(filePath, compressedBlob, { contentType: 'image/webp' });
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: publicUrlData } = supabaseClient.storage
+                        .from('forum-images')
+                        .getPublicUrl(filePath);
+
+                    newPost.value.imageUrls.push(publicUrlData.publicUrl);
+                }
+            } catch (error) {
+                console.error("上传图床失败", error);
+                alert('图片上传失败，请确保您已登录。');
+            } finally {
+                isUploadingImages.value = false;
+                event.target.value = ''; 
+            }
+        };
+
+        const removeImage = (index) => {
+            newPost.value.imageUrls.splice(index, 1);
+        };
 
         const submitPost = async () => {
             if (!newPost.value.title || !newPost.value.content || !newPost.value.categoryId) return;
@@ -174,7 +280,12 @@ createApp({
                 const response = await fetch('/api/post', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: newPost.value.title, content: newPost.value.content, category_id: newPost.value.categoryId })
+                    body: JSON.stringify({ 
+                        title: newPost.value.title, 
+                        content: newPost.value.content, 
+                        category_id: newPost.value.categoryId,
+                        image_urls: newPost.value.imageUrls
+                    })
                 });
                 const result = await response.json();
                 if (response.ok) { window.location.reload(); } else { alert(result.message || '发布失败'); }
@@ -190,8 +301,13 @@ createApp({
             } catch (error) { alert('网络错误'); }
         };
 
-        return { categories, posts, currentUser, currentCategoryId, filteredPosts, newPost, isSubmitting, submitPost, deletePost };
+        return { 
+            categories, posts, currentUser, currentCategoryId, filteredPosts, 
+            newPost, isSubmitting, isUploadingImages, 
+            submitPost, deletePost, handleImageUpload, removeImage 
+        };
     }
 }).mount('#forum-app');
+{% endraw %}
 </script>
 {% endblock %}

@@ -4,4 +4,4 @@ Pillow
 gunicorn
 supabase
 python-dotenv
-flask_limiter
+Flask-Limiter
