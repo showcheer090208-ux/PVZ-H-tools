@@ -27,13 +27,30 @@ def admin_required(f):
     return decorated_function
 
 # ==================== 路由：登录与注册 ====================
+# ==================== 路由：登录与注册 ====================
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
-        if request.cookies.get('access_token'):
-            return redirect('/forum')
+        token = request.cookies.get('access_token')
+        
+        # 🚨 逻辑优化：不再是“有 Cookie 就跳转”，而是“有【有效】Token 才跳转”
+        if token:
+            try:
+                # 尝试用这个 token 去请求 supabase 验证用户
+                user_res = supabase.auth.get_user(token)
+                if user_res and user_res.user:
+                    # 只有真正拿到了用户信息，才说明已登录，跳转大厅
+                    return redirect('/forum')
+            except Exception:
+                # 如果 token 验证失败（过期或伪造），说明是无效残留
+                # 此时我们主动清除这个残留 Cookie，并继续展示登录界面
+                resp = make_response(render_template('login.html'))
+                resp.delete_cookie('access_token', path='/')
+                return resp
+        
         return render_template('login.html')
     
+    # POST 逻辑部分
     email = request.form.get('email')
     password = request.form.get('password')
     action = request.form.get('action') 
@@ -47,8 +64,9 @@ def login():
             res = supabase.auth.sign_in_with_password({"email": email, "password": password})
             token = res.session.access_token
             
+            # 登录成功，跳转大厅
             response = make_response(redirect('/forum'))
-            # 🚨 核心修复 1：加上 path='/' 确保 Cookie 是全站级别的
+            # 确保 path='/' 覆盖全站，max_age 建议设长一点确保稳定性
             response.set_cookie('access_token', token, httponly=True, max_age=60*60*24*7, path='/')
             return response
             
@@ -57,29 +75,25 @@ def login():
         return render_template('login.html', error=error_msg)
 
 # ==================== 路由：退出登录 ====================
-# ==================== 路由：退出登录 ====================
 @auth_bp.route('/logout')
 def logout():
     """
-    执行彻底登出：销毁服务端 Session + 清除本地 Cookie
+    彻底登出：销毁服务端会话 + 强制清除本地状态
     """
-    # 1. 尝试通知 Supabase 服务端销毁会话
     token = request.cookies.get('access_token')
     if token:
         try:
-            # 这一步是为了让 Supabase 后台也知道这个 Token 失效了
+            # 告诉 Supabase 销毁这个 session
             supabase.auth.sign_out()
-        except Exception as e:
-            # 即使服务端报错（比如网络问题或Token已过期），我们也要继续执行本地清除
-            print(f"Supabase SignOut 提示: {e}")
+        except:
+            pass
             
-    # 2. 构造重定向响应
+    # 跳转回登录页，并强制删除 Cookie
     response = make_response(redirect('/login'))
-    
-    # 3. 🚨 核心修复：删除本地 Cookie
-    # 注意：path='/' 必须与你登录时 set_cookie 设置的路径完全一致，否则删不掉
     response.delete_cookie('access_token', path='/')
     
+    # 额外保险：通过 Header 告诉浏览器，登出动作后不要使用缓存
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
 
 # ==================== 路由：个人中心 ====================
