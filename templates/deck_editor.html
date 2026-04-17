@@ -13,7 +13,13 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .v-enter-active, .v-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
         .v-enter-from, .v-leave-to { opacity: 0; transform: translateY(-10px); }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); } 
+        
+        /* Toast 动画 */
+        .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, -10px); }
+        
+        /* 为悬浮导航预留底部空间 */
+        .pb-safe-for-fab { padding-bottom: 5rem; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
@@ -34,7 +40,7 @@
     </header>
 
     {% raw %}
-    <div id="app" class="flex-grow flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full p-0 md:p-4 gap-0 md:gap-4 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0" v-cloak>
+    <div id="app" class="flex-grow flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full p-0 md:p-4 gap-0 md:gap-4" v-cloak>
         
         <!-- 左侧：选择卡组 -->
         <div :class="[activeTab === 'list' ? 'flex' : 'hidden', 'md:flex bg-white md:rounded-3xl shadow-sm border-r md:border border-gray-200 flex-col w-full md:w-1/4 h-full overflow-hidden']">
@@ -78,7 +84,7 @@
                               selectedCard?.CardGuid === card.CardGuid ? 'bg-green-50 border-green-200 rounded-2xl shadow-sm' : 'hover:bg-gray-50 rounded-xl']">
                     <div>
                         <div class="font-bold text-gray-800 text-sm md:text-base">{{ card.name }}</div>
-                        <div class="text-[11px] md:text-xs text-gray-400 font-mono mt-0.5">ID: {{ card.CardGuid }}</div>
+                        <div class="text-[11px] md:text-xs text-gray-400 font-mono mt-0.5">ID: {{ String(card.CardGuid).slice(-8) }}</div>
                     </div>
                 </div>
             </div>
@@ -97,14 +103,26 @@
         </div>
 
         <!-- 右侧：当前卡组 & 独立打包中心 -->
-        <div :class="[activeTab === 'deck' ? 'flex' : 'hidden', 'md:flex bg-white md:rounded-3xl shadow-sm border-gray-200 flex-col w-full md:flex-grow h-full overflow-hidden relative']">
+        <div :class="[activeTab === 'deck' ? 'flex' : 'hidden', 'md:flex bg-white md:rounded-3xl shadow-sm border-gray-200 flex-col w-full md:flex-grow h-full overflow-hidden relative', 'pb-safe-for-fab md:pb-0']">
             <div class="p-3 md:p-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
                 <div class="flex items-center">
                     <span class="material-symbols-rounded text-purple-500 mr-2">style</span>
                     <h2 class="font-bold text-gray-800 truncate max-w-[150px] md:max-w-[200px]">{{ currentDeck ? currentDeck.chn_name : '暂未选定' }}</h2>
                 </div>
-                <div class="text-xs md:text-sm font-bold px-3 py-1.5 rounded-full" :class="totalCards > 0 ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-400'">
-                    共 {{ totalCards }} 张
+                <div class="flex items-center space-x-2">
+                    <!-- 分享按钮 -->
+                    <button v-if="currentDeck && deckCards.length > 0" @click="copyDeckCode" 
+                            class="text-blue-500 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 p-2 rounded-xl transition">
+                        <span class="material-symbols-rounded text-lg">share</span>
+                    </button>
+                    <!-- 导入按钮 -->
+                    <button @click="showImportDialog = true" 
+                            class="text-green-500 hover:text-green-600 bg-green-50 hover:bg-green-100 p-2 rounded-xl transition">
+                        <span class="material-symbols-rounded text-lg">download</span>
+                    </button>
+                    <div class="text-xs md:text-sm font-bold px-3 py-1.5 rounded-full" :class="totalCards > 0 ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-400'">
+                        共 {{ totalCards }} 张
+                    </div>
                 </div>
             </div>
 
@@ -117,14 +135,23 @@
                 <TransitionGroup name="v" tag="div" class="space-y-2" v-else>
                     <div v-for="(card, index) in deckCards" :key="card.cardguid" 
                          class="flex items-center justify-between bg-white border border-gray-100 shadow-sm p-3 md:p-4 rounded-2xl hover:border-purple-200 transition-all">
-                        <div class="flex flex-col">
+                        <div class="flex-1">
                             <span class="font-bold text-gray-800 text-sm md:text-base">{{ card.name }}</span>
-                            <span class="text-[11px] md:text-xs text-gray-400 font-mono mt-0.5">ID: {{ card.cardguid }}</span>
+                            <span class="text-[10px] md:text-xs text-gray-400 font-mono block mt-0.5">ID: {{ String(card.cardguid).slice(-8) }}</span>
                         </div>
-                        <div class="flex items-center space-x-3 md:space-x-4">
-                            <span class="text-base md:text-lg font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-xl">x{{ card.count }}</span>
-                            <button @click="removeCard(index)" class="text-red-400 hover:text-red-600 transition bg-red-50 hover:bg-red-100 p-2 rounded-xl active:scale-90">
-                                <span class="material-symbols-rounded text-sm md:text-base">delete</span>
+                        <!-- 数量调整器 -->
+                        <div class="flex items-center space-x-2">
+                            <button @click="adjustCardCount(card, -1)" 
+                                    class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 active:scale-95 transition">
+                                <span class="material-symbols-rounded text-base">remove</span>
+                            </button>
+                            <span class="w-8 text-center font-bold text-purple-600 text-base">{{ card.count }}</span>
+                            <button @click="adjustCardCount(card, 1)" 
+                                    class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 active:scale-95 transition">
+                                <span class="material-symbols-rounded text-base">add</span>
+                            </button>
+                            <button @click="removeCard(index)" class="w-8 h-8 rounded-full bg-red-50 text-red-400 hover:bg-red-100 transition active:scale-95">
+                                <span class="material-symbols-rounded text-base">delete</span>
                             </button>
                         </div>
                     </div>
@@ -154,23 +181,51 @@
             </div>
         </div>
         
-        <!-- 手机端底部导航栏 -->
-        <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-around items-center z-50 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-            <button @click="activeTab = 'list'" :class="activeTab === 'list' ? 'text-blue-500' : 'text-gray-400'" class="flex-1 py-2.5 flex flex-col items-center transition-colors">
-                <span class="material-symbols-rounded text-[24px] mb-0.5" :class="activeTab === 'list' ? 'filled' : ''">view_list</span>
-                <span class="text-[10px] font-bold">目标卡组</span>
+        <!-- 手机端悬浮圆角底部导航栏 -->
+        <div class="md:hidden fixed bottom-4 left-4 right-4 bg-white/95 backdrop-blur-lg border border-gray-200 rounded-2xl flex justify-around items-center z-50 shadow-xl">
+            <button @click="activeTab = 'list'" :class="activeTab === 'list' ? 'text-blue-500 bg-blue-50' : 'text-gray-400'" class="flex-1 py-3 m-1 rounded-xl flex flex-col items-center transition-all">
+                <span class="material-symbols-rounded text-[22px]" :class="activeTab === 'list' ? 'filled' : ''">view_list</span>
+                <span class="text-[10px] font-medium mt-0.5">目标卡组</span>
             </button>
-            <button @click="activeTab = 'search'" :class="activeTab === 'search' ? 'text-green-500' : 'text-gray-400'" class="flex-1 py-2.5 flex flex-col items-center transition-colors">
-                <span class="material-symbols-rounded text-[24px] mb-0.5">search</span>
-                <span class="text-[10px] font-bold">找卡牌</span>
+            <button @click="activeTab = 'search'" :class="activeTab === 'search' ? 'text-green-500 bg-green-50' : 'text-gray-400'" class="flex-1 py-3 m-1 rounded-xl flex flex-col items-center transition-all">
+                <span class="material-symbols-rounded text-[22px]">search</span>
+                <span class="text-[10px] font-medium mt-0.5">找卡牌</span>
             </button>
-            <button @click="activeTab = 'deck'" :class="activeTab === 'deck' ? 'text-purple-500' : 'text-gray-400'" class="flex-1 py-2.5 flex flex-col items-center relative transition-colors">
-                <span class="material-symbols-rounded text-[24px] mb-0.5">style</span>
-                <span class="text-[10px] font-bold">工作台</span>
-                <span v-if="totalCards > 0" class="absolute top-1 right-4 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white shadow-sm">{{totalCards}}</span>
+            <button @click="activeTab = 'deck'" :class="activeTab === 'deck' ? 'text-purple-500 bg-purple-50' : 'text-gray-400'" class="flex-1 py-3 m-1 rounded-xl flex flex-col items-center relative transition-all">
+                <span class="material-symbols-rounded text-[22px]">style</span>
+                <span class="text-[10px] font-medium mt-0.5">工作台</span>
+                <span v-if="totalCards > 0" class="absolute -top-1 right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white shadow-sm">{{ totalCards > 99 ? '99+' : totalCards }}</span>
             </button>
         </div>
 
+        <!-- Toast 通知 -->
+        <div v-if="toastMessage" class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2.5 rounded-full text-sm font-medium shadow-lg transition-all"
+             :class="toastType === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'">
+            {{ toastMessage }}
+        </div>
+
+        <!-- 导入对话框 -->
+        <div v-if="showImportDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showImportDialog = false">
+            <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl">
+                <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-800">导入卡组</h3>
+                    <button @click="showImportDialog = false" class="text-gray-400 hover:text-gray-600">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+                <div class="p-4">
+                    <textarea v-model="importCode" placeholder="粘贴卡组分享链接或代码..." rows="3" class="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono focus:ring-2 focus:ring-purple-400 outline-none"></textarea>
+                    <div class="flex space-x-3 mt-4">
+                        <button @click="importFromPaste" class="flex-1 bg-purple-500 hover:bg-purple-600 text-white py-2.5 rounded-xl font-medium text-sm transition">
+                            解析并导入
+                        </button>
+                        <button @click="showImportDialog = false" class="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl font-medium text-sm transition">
+                            取消
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     {% endraw %}
 
@@ -191,6 +246,20 @@
                 const selectedCard = ref(null);
                 const addQty = ref(4);
                 const hasUnsavedChanges = ref(false);
+                
+                // Toast 相关
+                const toastMessage = ref('');
+                const toastType = ref('success');
+                
+                // 导入对话框
+                const showImportDialog = ref(false);
+                const importCode = ref('');
+
+                const showToast = (msg, type = 'success') => {
+                    toastMessage.value = msg;
+                    toastType.value = type;
+                    setTimeout(() => { toastMessage.value = ''; }, 2000);
+                };
 
                 const filteredCards = computed(() => {
                     if (!searchQuery.value) return cardDb.value;
@@ -203,7 +272,6 @@
 
                 const fetchInitData = async () => {
                     try {
-                        const cachedRaw = localStorage.getItem('pvzh_raw_bundle_data');
                         const response = await fetch('/api/init_data');
                         const result = await response.json();
                         
@@ -211,12 +279,16 @@
                             heroDecks.value = result.data.hero_decks;
                             cardDb.value = result.data.cards;
                             
-                            if (!cachedRaw && result.data.raw_bundle_data) {
+                            // 修复：无论是否有缓存，都存储 raw_bundle_data
+                            if (result.data.raw_bundle_data) {
                                 localStorage.setItem('pvzh_raw_bundle_data', JSON.stringify(result.data.raw_bundle_data));
                             }
+                        } else {
+                            showToast("初始化失败：" + (result.msg || "未知错误"), "error");
                         }
                     } catch (error) {
                         console.error("初始化失败:", error);
+                        showToast("初始化失败，请刷新重试", "error");
                     } finally {
                         isLoadingData.value = false;
                     }
@@ -230,22 +302,28 @@
                     if (userMod) {
                         deckCards.value = JSON.parse(userMod);
                     } else {
-                        const allRaw = JSON.parse(localStorage.getItem('pvzh_raw_bundle_data') || '{}');
-                        const originalJson = allRaw[deck.eng_id];
-                        
-                        if (originalJson && originalJson.Cards && originalJson.Cards.CardEntries) {
-                            deckCards.value = originalJson.Cards.CardEntries.map(entry => {
-                                const cardInfo = cardDb.value.find(c => c.CardGuid === entry.CardGuid);
-                                return {
-                                    name: cardInfo ? cardInfo.name : `未知ID:${entry.CardGuid}`,
-                                    cardguid: entry.CardGuid,
-                                    guid: entry.Guid,
-                                    faction: entry.Faction,
-                                    count: entry.NumCopies
-                                };
-                            });
+                        // 修复：正确读取 raw_bundle_data
+                        const rawData = localStorage.getItem('pvzh_raw_bundle_data');
+                        if (rawData) {
+                            const allRaw = JSON.parse(rawData);
+                            const originalJson = allRaw[deck.eng_id];
+                            
+                            if (originalJson && originalJson.Cards && originalJson.Cards.CardEntries) {
+                                deckCards.value = originalJson.Cards.CardEntries.map(entry => {
+                                    const cardInfo = cardDb.value.find(c => c.CardGuid === entry.CardGuid);
+                                    return {
+                                        name: cardInfo ? cardInfo.name : `未知ID:${String(entry.CardGuid).slice(-8)}`,
+                                        cardguid: entry.CardGuid,
+                                        guid: entry.Guid,
+                                        faction: entry.Faction,
+                                        count: entry.NumCopies
+                                    };
+                                });
+                            } else {
+                                deckCards.value = [];
+                            }
                         } else {
-                            deckCards.value = []; 
+                            deckCards.value = [];
                         }
                     }
                     if (window.innerWidth < 768) activeTab.value = 'deck';
@@ -266,18 +344,45 @@
                         });
                     }
                     if(addQty.value <= 0) addQty.value = 1;
+                    hasUnsavedChanges.value = true;
+                    showToast(`已添加 ${addQty.value} 张 ${selectedCard.value.name}`, 'success');
                     if (window.innerWidth < 768) activeTab.value = 'deck';
                 };
 
-                const removeCard = (index) => { deckCards.value.splice(index, 1); };
-                const clearDeck = () => { if(confirm("确定清空列表吗？")) deckCards.value = []; };
+                // 调整卡牌数量（工作台内）
+                const adjustCardCount = (card, delta) => {
+                    const newCount = card.count + delta;
+                    if (newCount <= 0) {
+                        const index = deckCards.value.findIndex(c => c.cardguid === card.cardguid);
+                        if (index !== -1) deckCards.value.splice(index, 1);
+                        showToast(`已移除 ${card.name}`, 'success');
+                    } else {
+                        card.count = newCount;
+                    }
+                    hasUnsavedChanges.value = true;
+                };
+
+                const removeCard = (index) => { 
+                    const removed = deckCards.value[index];
+                    deckCards.value.splice(index, 1);
+                    hasUnsavedChanges.value = true;
+                    showToast(`已移除 ${removed.name}`, 'success');
+                };
+                
+                const clearDeck = () => { 
+                    if(confirm("确定清空当前卡组的所有卡牌吗？")) {
+                        deckCards.value = [];
+                        hasUnsavedChanges.value = true;
+                        showToast("已清空", 'success');
+                    }
+                };
 
                 const saveToLocal = () => {
                     if (!currentDeck.value) return;
                     localStorage.setItem(`pvzh_deck_${currentDeck.value.eng_id}`, JSON.stringify(deckCards.value));
                     localStorage.setItem('has_pending_mods', 'true');
                     hasUnsavedChanges.value = true;
-                    alert(`✅ 卡组 [${currentDeck.value.chn_name}] 暂存成功！`);
+                    showToast(`✅ 卡组 [${currentDeck.value.chn_name}] 暂存成功！`, 'success');
                 };
 
                 const clearLocalData = () => {
@@ -285,11 +390,103 @@
                         localStorage.clear();
                         deckCards.value = [];
                         hasUnsavedChanges.value = false;
-                        alert("缓存已清空，可重新选择卡组。");
+                        showToast("缓存已清空", 'success');
                     }
                 };
 
-                // [新增] 闭环：一键打包逻辑
+                // 导出当前卡组为分享码
+                const copyDeckCode = async () => {
+                    if (!currentDeck.value || deckCards.value.length === 0) {
+                        showToast("没有可分享的卡组", "error");
+                        return;
+                    }
+                    
+                    const deckData = {
+                        v: 1,
+                        n: currentDeck.value.chn_name,
+                        h: currentDeck.value.eng_id,
+                        c: deckCards.value.map(card => ({
+                            i: card.cardguid,
+                            cnt: card.count
+                        }))
+                    };
+                    
+                    const jsonStr = JSON.stringify(deckData);
+                    const compressed = jsonStr;
+                    const code = btoa(encodeURIComponent(compressed));
+                    const fullUrl = `${window.location.origin}/deck-editor?import=${code}`;
+                    
+                    try {
+                        await navigator.clipboard.writeText(fullUrl);
+                        showToast('卡组分享链接已复制！', 'success');
+                    } catch (e) {
+                        // 降级方案
+                        prompt('手动复制以下链接：', fullUrl);
+                        showToast('链接已生成，请手动复制', 'success');
+                    }
+                };
+
+                // 从代码导入卡组
+                const importDeckFromCode = async (code) => {
+                    try {
+                        let cleanCode = code;
+                        // 如果是完整 URL，提取参数
+                        if (code.includes('?import=')) {
+                            const url = new URL(code);
+                            cleanCode = url.searchParams.get('import');
+                        }
+                        if (!cleanCode) throw new Error('无效的分享链接');
+                        
+                        const decoded = decodeURIComponent(atob(cleanCode));
+                        const deckData = JSON.parse(decoded);
+                        
+                        if (deckData.v !== 1) throw new Error('版本不兼容，请更新工坊');
+                        
+                        // 查找对应的英雄卡组
+                        let targetDeck = null;
+                        for (const decks of Object.values(heroDecks.value)) {
+                            targetDeck = decks.find(d => d.eng_id === deckData.h);
+                            if (targetDeck) break;
+                        }
+                        
+                        if (!targetDeck) throw new Error(`未找到英雄: ${deckData.h}`);
+                        
+                        // 切换到目标卡组
+                        selectDeck(targetDeck);
+                        
+                        // 清空并导入卡牌
+                        deckCards.value = deckData.c.map(cardItem => {
+                            const cardInfo = cardDb.value.find(c => c.CardGuid === cardItem.i);
+                            return {
+                                name: cardInfo ? cardInfo.name : `未知卡牌(${String(cardItem.i).slice(-8)})`,
+                                cardguid: cardItem.i,
+                                count: cardItem.cnt
+                            };
+                        }).filter(card => card.count > 0);
+                        
+                        hasUnsavedChanges.value = true;
+                        showToast(`✨ 成功导入卡组：${deckData.n}`, 'success');
+                        return true;
+                    } catch (e) {
+                        console.error('导入失败:', e);
+                        showToast(`导入失败：${e.message}`, 'error');
+                        return false;
+                    }
+                };
+
+                const importFromPaste = async () => {
+                    if (!importCode.value.trim()) {
+                        showToast("请输入分享链接或代码", "error");
+                        return;
+                    }
+                    const success = await importDeckFromCode(importCode.value);
+                    if (success) {
+                        showImportDialog.value = false;
+                        importCode.value = '';
+                    }
+                };
+
+                // 一键打包逻辑
                 const quickExport = async () => {
                     const mods = {};
                     for (let i = 0; i < localStorage.length; i++) {
@@ -301,7 +498,7 @@
                     }
 
                     if (Object.keys(mods).length === 0) {
-                        alert("您还没有修改任何卡组！请修改并点击【暂存】后再导出。");
+                        showToast("您还没有修改任何卡组！请修改并点击【暂存】后再导出。", "error");
                         return;
                     }
 
@@ -326,26 +523,50 @@
                         a.click();
                         window.URL.revokeObjectURL(url);
                         
-                        alert("✨ 生成成功！请解压下载的 ZIP 文件，将里面的 Bundle 覆盖进手机目录。");
+                        showToast("✨ 生成成功！下载已开始。", 'success');
                     } catch (error) {
-                        alert(error.message);
+                        showToast(error.message, "error");
                     } finally {
                         isExporting.value = false;
                     }
                 };
 
+                // 离开页面未保存提醒
                 onMounted(() => {
                     fetchInitData(); 
                     if (localStorage.getItem('has_pending_mods') === 'true') {
                         hasUnsavedChanges.value = true;
                     }
+                    
+                    // 检查 URL 中的导入参数
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const importParam = urlParams.get('import');
+                    if (importParam) {
+                        setTimeout(() => {
+                            importDeckFromCode(importParam);
+                            // 清除 URL 参数（美观）
+                            window.history.replaceState({}, '', '/deck-editor');
+                        }, 800);
+                    }
+                    
+                    // 离开页面提醒
+                    window.addEventListener('beforeunload', (e) => {
+                        if (hasUnsavedChanges.value) {
+                            e.preventDefault();
+                            e.returnValue = '您有未保存的修改，确定要离开吗？';
+                            return e.returnValue;
+                        }
+                    });
                 });
 
                 return {
                     activeTab, heroDecks, cardDb, isLoadingData, searchQuery, filteredCards, 
                     selectedCard, currentDeck, deckCards, addQty, totalCards, 
-                    hasUnsavedChanges, isExporting, selectDeck, addCardToDeck, removeCard, 
-                    clearDeck, saveToLocal, clearLocalData, quickExport
+                    hasUnsavedChanges, isExporting, toastMessage, toastType,
+                    showImportDialog, importCode,
+                    selectDeck, addCardToDeck, adjustCardCount, removeCard, 
+                    clearDeck, saveToLocal, clearLocalData, quickExport,
+                    copyDeckCode, importFromPaste, importDeckFromCode
                 };
             }
         }).mount('#app');
