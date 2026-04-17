@@ -136,6 +136,11 @@
             </div>
             
             <div class="flex items-center space-x-2 md:space-x-4">
+                <button @click="showImportDialog = true" 
+                        class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 md:px-5 md:py-2.5 rounded-xl md:rounded-2xl flex items-center transition shadow-sm active:scale-95 font-semibold text-sm md:text-base">
+                    <span class="material-symbols-rounded mr-1 md:mr-2 text-[18px] md:text-[20px]">download</span>
+                    <span class="hidden md:inline">导入</span>
+                </button>
                 <button @click="showExportMenu = true" 
                         class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 md:px-5 md:py-2.5 rounded-xl md:rounded-2xl flex items-center transition shadow-lg shadow-slate-200 active:scale-95 font-semibold text-sm md:text-base">
                     <span class="material-symbols-rounded mr-1 md:mr-2 text-[18px] md:text-[20px]">ios_share</span>
@@ -310,6 +315,36 @@
             </transition>
         </div>
 
+        <!-- ========== 导入中心对话框 ========== -->
+        <transition name="v">
+            <div v-if="showImportDialog" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4" @click.self="showImportDialog = false">
+                <div class="bg-white w-full max-w-lg md:rounded-[32px] rounded-t-[32px] overflow-hidden shadow-2xl flex flex-col">
+                    <div class="p-6 md:p-8 border-b border-slate-100 flex justify-between items-center bg-white">
+                        <div>
+                            <h3 class="text-2xl font-black text-slate-800">导入卡组</h3>
+                            <p class="text-sm text-slate-500 font-medium mt-1">解析来自他人的分享链接或代码</p>
+                        </div>
+                        <button @click="showImportDialog = false" class="bg-slate-100 hover:bg-slate-200 p-2.5 rounded-full text-slate-500 transition active:scale-90">
+                            <span class="material-symbols-rounded">close</span>
+                        </button>
+                    </div>
+                    <div class="p-6 md:p-8 bg-slate-50/50">
+                        <textarea v-model="importCode" placeholder="在此粘贴卡组分享链接 (URL) 或 Base64 代码..." rows="4" 
+                                  class="w-full bg-white border border-slate-200 rounded-2xl p-4 font-mono text-sm text-slate-700 placeholder-slate-400 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none shadow-sm resize-none"></textarea>
+                        
+                        <div class="flex gap-4 mt-6">
+                            <button @click="showImportDialog = false" class="flex-1 bg-white border border-slate-200 text-slate-600 font-bold py-3.5 rounded-2xl hover:bg-slate-50 transition active:scale-95">
+                                取消
+                            </button>
+                            <button @click="importFromPaste" class="flex-1 bg-indigo-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition active:scale-95 flex justify-center items-center gap-2">
+                                <span class="material-symbols-rounded text-[20px]">check_circle</span> 解析导入
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
         <!-- ========== 统一分享/导出中心对话框 ========== -->
         <transition name="v">
             <div v-if="showExportMenu" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4" @click.self="showExportMenu = false">
@@ -404,6 +439,8 @@
                 const deckCards = ref([]);
                 const searchQuery = ref("");
                 const showExportMenu = ref(false);
+                const showImportDialog = ref(false);
+                const importCode = ref('');
                 const isDesktop = ref(window.innerWidth >= 768);
                 
                 // Toast
@@ -479,9 +516,21 @@
 
                 // ========== 业务逻辑 ==========
                 const filteredCards = computed(() => {
-                    if (!searchQuery.value) return cardDb.value.slice(0, 100); // 默认展示部分以防卡顿
-                    const query = searchQuery.value.toLowerCase();
-                    return cardDb.value.filter(c => c.name.toLowerCase().includes(query));
+                    // 彻底移除截断限制，直接渲染所有数据。避免游戏后期卡牌(大于600位的)显示不出来
+                    if (!searchQuery.value) {
+                        return cardDb.value;
+                    }
+                    
+                    const query = searchQuery.value.toLowerCase().trim();
+                    return cardDb.value.filter(c => {
+                        // 强制转字符串以防部分奇葩数据报错
+                        const matchName = c.name && String(c.name).toLowerCase().includes(query);
+                        const matchId = c.CardGuid && String(c.CardGuid).includes(query);
+                        // 增加对可能存在的英文字段匹配 (防范某些卡牌后端没返回中文名的情况)
+                        const matchEng = c.eng_name && String(c.eng_name).toLowerCase().includes(query);
+                        
+                        return matchName || matchId || matchEng;
+                    });
                 });
 
                 const totalCards = computed(() => deckCards.value.reduce((s, c) => s + c.count, 0));
@@ -540,7 +589,8 @@
                             const original = allRaw[deck.eng_id];
                             if (original?.Cards?.CardEntries) {
                                 deckCards.value = original.Cards.CardEntries.map(e => ({
-                                    name: cardDb.value.find(c => c.CardGuid === e.CardGuid)?.name || `未知卡牌(${e.CardGuid})`,
+                                    // 修复：强制转换为 String 避免纯数字和字符串数字对比失败
+                                    name: cardDb.value.find(c => String(c.CardGuid) === String(e.CardGuid))?.name || `未知卡牌(${e.CardGuid})`,
                                     cardguid: e.CardGuid,
                                     count: e.NumCopies
                                 }));
@@ -595,6 +645,83 @@
                         deckCards.value = [];
                         currentDeck.value = null;
                         showToast("本地缓存已完全清空");
+                    }
+                };
+
+                // ========== 导入功能 ==========
+                const importDeckFromCode = (code) => {
+                    try {
+                        let cleanCode = code;
+                        // 尝试解析 URL 形式
+                        if (code.includes('?import=')) {
+                            const url = new URL(code);
+                            cleanCode = url.searchParams.get('import');
+                        }
+                        if (!cleanCode) throw new Error('无效的分享链接或代码');
+                        
+                        const decoded = decodeURIComponent(atob(cleanCode));
+                        const importData = JSON.parse(decoded);
+                        
+                        if (importData.v !== 1) throw new Error('版本不兼容，请更新工坊');
+                        
+                        if (importData.t === 'global') {
+                            // 全局多卡组导入
+                            let importedCount = 0;
+                            for (const [eng_id, cards] of Object.entries(importData.m)) {
+                                let targetExists = false;
+                                for (const decks of Object.values(heroDecks.value)) {
+                                    if (decks.find(d => d.eng_id === eng_id)) {
+                                        targetExists = true; break;
+                                    }
+                                }
+                                if (targetExists) {
+                                    localStorage.setItem(`pvzh_deck_${eng_id}`, JSON.stringify(cards));
+                                    importedCount++;
+                                }
+                            }
+                            
+                            // 刷新当前正在查看的卡组
+                            if (currentDeck.value && importData.m[currentDeck.value.eng_id]) {
+                                selectDeck(currentDeck.value);
+                            }
+                            showToast(`✨ 成功导入 ${importedCount} 个卡组修改`, 'success');
+                            
+                        } else {
+                            // 单卡组导入
+                            let targetDeck = null;
+                            for (const decks of Object.values(heroDecks.value)) {
+                                targetDeck = decks.find(d => d.eng_id === importData.h);
+                                if (targetDeck) break;
+                            }
+                            if (!targetDeck) throw new Error(`未找到英雄卡组: ${importData.h}`);
+                            
+                            selectDeck(targetDeck);
+                            
+                            deckCards.value = importData.c.map(cardItem => {
+                                // 修复：使用强制字符串全等匹配
+                                const cardInfo = cardDb.value.find(c => String(c.CardGuid) === String(cardItem.i));
+                                return {
+                                    name: cardInfo ? cardInfo.name : `未知卡牌(${String(cardItem.i).slice(-8)})`,
+                                    cardguid: cardItem.i,
+                                    count: cardItem.cnt
+                                };
+                            });
+                            saveToLocal(); // 导入后自动暂存
+                            showToast(`✨ 成功导入卡组：${importData.n}`, 'success');
+                        }
+                        return true;
+                    } catch (e) {
+                        console.error('导入失败:', e);
+                        showToast(`导入失败：${e.message}`, 'error');
+                        return false;
+                    }
+                };
+
+                const importFromPaste = () => {
+                    if (!importCode.value.trim()) return showToast("请输入分享链接或代码", "error");
+                    if (importDeckFromCode(importCode.value)) {
+                        showImportDialog.value = false;
+                        importCode.value = '';
                     }
                 };
 
@@ -685,10 +812,15 @@
                     fetchInitData();
                     window.addEventListener('resize', handleResize);
                     
-                    // 解析 Import 参数
+                    // 修复：解析并触发 Import 参数导入
                     const urlParams = new URLSearchParams(window.location.search);
                     if (urlParams.has('import')) {
-                        setTimeout(() => showToast('已检测到分享链接，将在后续功能中解析', 'info'), 1000);
+                        const importParam = urlParams.get('import');
+                        setTimeout(() => {
+                            importDeckFromCode(importParam);
+                            // 导入完成后清除地址栏的链接参数，保持美观且防止刷新二次导入
+                            window.history.replaceState({}, '', window.location.pathname);
+                        }, 1000);
                     }
                 });
                 
@@ -696,10 +828,10 @@
 
                 return {
                     activeTab, isLoadingData, heroDecks, cardDb, currentDeck, deckCards, searchQuery, filteredCards, totalCards,
-                    toast, showExportMenu, isDesktop, fabPos, fabExpanded, isDocked, fabEdge,
+                    toast, showExportMenu, showImportDialog, importCode, isDesktop, fabPos, fabExpanded, isDocked, fabEdge,
                     handleTouchStart, handleTouchMove, handleTouchEnd, toggleFab, switchTab,
                     selectDeck, quickAddCard, adjustCardCount, clearDeck, saveToLocal, clearLocalData, hasLocalMod,
-                    copyDeckCode, copyGlobalDeckCode, copyCurlConfig, quickExport
+                    copyDeckCode, copyGlobalDeckCode, copyCurlConfig, quickExport, importFromPaste
                 };
             }
         }).mount('#app');
