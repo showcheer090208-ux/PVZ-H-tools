@@ -96,7 +96,8 @@ def unpack():
         if not file: 
             return render_template('error.html', msg="请选择文件后再点击上传。"), 400
         
-        env = UnityPy.load(file.stream)
+        # 恢复使用 file.read()，解决部分环境下 UnityPy 无法读取 stream 的报错
+        env = UnityPy.load(file.read())
         memory_file = BytesIO()
         index_data = {}
         
@@ -155,7 +156,8 @@ def repack():
         if not orig_file or not mod_zip: 
             return render_template('error.html', msg="缺少文件！必须同时上传【原始Bundle】和【修改好的ZIP】。"), 400
         
-        env = UnityPy.load(orig_file.stream)
+        # 恢复使用 orig_file.read()，解决部分环境下 UnityPy 无法读取 stream 的报错
+        env = UnityPy.load(orig_file.read())
         zip_data = BytesIO(mod_zip.read())
         
         with zipfile.ZipFile(zip_data, 'r') as zf:
