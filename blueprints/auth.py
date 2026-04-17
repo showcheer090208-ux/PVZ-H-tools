@@ -57,11 +57,29 @@ def login():
         return render_template('login.html', error=error_msg)
 
 # ==================== 路由：退出登录 ====================
+# ==================== 路由：退出登录 ====================
 @auth_bp.route('/logout')
 def logout():
+    """
+    执行彻底登出：销毁服务端 Session + 清除本地 Cookie
+    """
+    # 1. 尝试通知 Supabase 服务端销毁会话
+    token = request.cookies.get('access_token')
+    if token:
+        try:
+            # 这一步是为了让 Supabase 后台也知道这个 Token 失效了
+            supabase.auth.sign_out()
+        except Exception as e:
+            # 即使服务端报错（比如网络问题或Token已过期），我们也要继续执行本地清除
+            print(f"Supabase SignOut 提示: {e}")
+            
+    # 2. 构造重定向响应
     response = make_response(redirect('/login'))
-    # 🚨 核心修复 2：删除时也必须带上 path='/'，否则删不掉！
+    
+    # 3. 🚨 核心修复：删除本地 Cookie
+    # 注意：path='/' 必须与你登录时 set_cookie 设置的路径完全一致，否则删不掉
     response.delete_cookie('access_token', path='/')
+    
     return response
 
 # ==================== 路由：个人中心 ====================
