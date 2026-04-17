@@ -2,6 +2,7 @@
 from flask import Blueprint, request, render_template, redirect, make_response, jsonify
 from functools import wraps
 from database import supabase
+from extensions import limiter
 
 auth_bp = Blueprint('auth', __name__)
 
