@@ -3,17 +3,13 @@ from flask import Blueprint, render_template, request, send_file, jsonify, redir
 import UnityPy
 from io import BytesIO
 import json
-import json5  # 【新增】引入增强型 JSON 解析器
+import json5  # 保留 json5 作为备用急救包
 import zipfile
 from functools import wraps
-from threading import Lock
 from extensions import limiter
-from database import supabase  # 确保导入了数据库实例用于鉴权
+from database import supabase
 
 unity_bp = Blueprint('unity', __name__)
-
-# 【核心新增】全局线程锁，确保引擎同一时间只能处理一个重负载任务
-engine_lock = Lock()
 
 # ==================== 装饰器：强制登录校验 ====================
 def login_required(f):
@@ -35,9 +31,9 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# ==================== 核心逻辑：智能 JSON 树处理 ====================
+# ==================== 核心逻辑：智能 JSON 树处理 (性能优化版) ====================
 def clean_json_string(s):
-    """清理 Unity 遗留的隐形控制字符，如 Null 字节或 BOM 头"""
+    """清理 Unity 遗留的隐形控制字符"""
     if not isinstance(s, str):
         return s
     return s.replace('\x00', '').replace('\ufeff', '').strip()
@@ -46,29 +42,32 @@ def transform_json_tree(tree, mode='expand'):
     """
     递归处理 Unity TypeTree 中的嵌套 JSON 字符串
     """
-    target_keys = {"m_Script", "m_Data", "m_RawData"} # 改用集合提升查找效率
+    target_keys = {"m_Script", "m_Data", "m_RawData"}
     
     if isinstance(tree, dict):
         for k, v in tree.items():
             if k in target_keys:
                 if mode == 'expand' and isinstance(v, str):
-                    # 1. 强力清洗隐形字符
                     cleaned_v = clean_json_string(v)
-                    # 2. 启发式判断是否为字典或列表的字符串形式
                     if (cleaned_v.startswith('{') and cleaned_v.endswith('}')) or \
                        (cleaned_v.startswith('[') and cleaned_v.endswith(']')):
+                        
+                        # 【核心优化：混合解析策略】
+                        # 1. 先尝试极速原生 C 解析 (光速，覆盖 99% 场景)
                         try:
-                            # 3. 【核心优化】使用 json5 解析，完美兼容非标准格式、单引号、尾随逗号等
-                            tree[k] = json5.loads(cleaned_v)
-                            # 4. 递归处理套娃
+                            tree[k] = json.loads(cleaned_v)
                             transform_json_tree(tree[k], mode)
-                        except Exception as e:
-                            # 解析失败则保持原状，说明只是长得像 JSON 的普通字符串
-                            pass 
+                        except json.JSONDecodeError:
+                            # 2. 如果原生解析失败，说明有注释/脏格式，启用 json5 紧急救援 (稍慢但极其健壮)
+                            try:
+                                tree[k] = json5.loads(cleaned_v)
+                                transform_json_tree(tree[k], mode)
+                            except Exception:
+                                pass # 如果连 json5 都救不活，那这就是个普通字符串
+                
                 elif mode == 'collapse' and isinstance(v, (dict, list)):
-                    # 先递归收缩内层
                     transform_json_tree(v, mode)
-                    # 打包时，恢复为极其严谨且无多余空格的标准 JSON 字符串供 Unity 读取
+                    # 打包时统一使用原生极速序列化，保证输出绝对标准的 JSON
                     tree[k] = json.dumps(v, separators=(',', ':'), ensure_ascii=False)
             else:
                 transform_json_tree(v, mode)
@@ -79,27 +78,16 @@ def transform_json_tree(tree, mode='expand'):
 
 # ==================== 接口路由 ====================
 
-# 【新增】供前端查询引擎状态的接口
-@unity_bp.route('/api/unity/status')
-def engine_status():
-    # .locked() 会返回 True 如果锁正在被别人占用
-    return jsonify({"is_idle": not engine_lock.locked()})
-
-# 1. 访问 Unity 工具主界面
 @unity_bp.route('/unity')
-@login_required  # 【安全增强】强制登录才能访问页面
+@login_required
 def index():
     return render_template('tab_unity.html', current_tab='unity')
 
-# 2. 独立出来的解包接口
 @unity_bp.route('/unpack', methods=['POST'])
 @limiter.limit("3 per minute")
-@login_required  # 【安全增强】强制登录才能解包
+@login_required
 def unpack():
-    # 非阻塞尝试获取锁：如果拿不到，说明有其他人在处理，直接返回错误
-    if not engine_lock.acquire(blocking=False):
-        return render_template('error.html', msg="服务器引擎当前正在处理其他用户的资源，为防止内存溢出已开启保护，请等待 1 分钟后再试！"), 429
-
+    # 移除锁，恢复并发处理
     try:
         if request.content_length and request.content_length > 10 * 1024 * 1024:
             return render_template('error.html', msg="文件太大啦！解包功能最大支持 10MB 的文件。"), 413
@@ -108,7 +96,6 @@ def unpack():
         if not file: 
             return render_template('error.html', msg="请选择文件后再点击上传。"), 400
         
-        # 【内存优化】直接读取文件流，避免 file.read() 复制全量字节到内存
         env = UnityPy.load(file.stream)
         memory_file = BytesIO()
         index_data = {}
@@ -118,21 +105,18 @@ def unpack():
                 try:
                     name = f"Object_{obj.path_id}"
                     
-                    # 逻辑回归：优先尝试原版的 TypeTree 提取
                     try:
                         tree = obj.read_typetree()
                         if tree:
                             tree = transform_json_tree(tree, mode='expand')
                             name = tree.get("m_Name", name)
                             file_name = f"{obj.type.name}/{name}_{obj.path_id}.json"
-                            # 导出给用户看的 JSON，用标准库 json.dumps，加上缩进，方便阅读
                             zf.writestr(file_name, json.dumps(tree, indent=4, ensure_ascii=False).encode('utf-8'))
                             index_data[str(obj.path_id)] = file_name
                             continue 
                     except Exception:
-                        pass # 正常抛出（某些对象没有 TypeTree）
+                        pass
 
-                    # 逻辑回归：原版的图片提取
                     if obj.type.name in ["Texture2D", "Sprite"]:
                         data = obj.read()
                         img_io = BytesIO()
@@ -140,35 +124,27 @@ def unpack():
                         file_name = f"Images/{data.name}_{obj.path_id}.png"
                         zf.writestr(file_name, img_io.getvalue())
                         index_data[str(obj.path_id)] = file_name
-                    # 逻辑回归：原版的保底提取
                     else:
                         raw = obj.get_raw_data()
                         file_name = f"Raw/{obj.type.name}_{obj.path_id}.dat"
                         zf.writestr(file_name, raw)
                         index_data[str(obj.path_id)] = file_name
                 except Exception as obj_e:
-                    # 打印具体哪个对象失败，而不是静默吞噬
                     print(f"[解包警告] 对象 {obj.path_id} 提取跳过: {obj_e}")
 
             zf.writestr("_index.json", json.dumps(index_data, indent=4, ensure_ascii=False))
 
         memory_file.seek(0)
         return send_file(memory_file, mimetype='application/zip', as_attachment=True, download_name=f"Unpacked_{file.filename}.zip")
-    
     except Exception as e:
         return render_template('error.html', msg=f"解包失败，可能是文件损坏或加密。错误详情: {e}"), 500
-    finally:
-        # 【至关重要】无论成功、报错还是触发文件大小拦截，都必须释放锁！
-        engine_lock.release()
 
-# 3. 独立出来的打包回填接口
+
 @unity_bp.route('/repack', methods=['POST'])
 @limiter.limit("3 per minute")
-@login_required  # 【安全增强】强制登录才能打包
+@login_required
 def repack():
-    if not engine_lock.acquire(blocking=False):
-        return render_template('error.html', msg="服务器引擎当前正在处理其他用户的资源，为防止内存溢出已开启保护，请等待 1 分钟后再试！"), 429
-
+    # 移除锁，恢复并发处理
     try:
         if request.content_length and request.content_length > 20 * 1024 * 1024:
             return render_template('error.html', msg="文件太大啦！回填功能最大支持总计 20MB 的文件。"), 413
@@ -179,7 +155,6 @@ def repack():
         if not orig_file or not mod_zip: 
             return render_template('error.html', msg="缺少文件！必须同时上传【原始Bundle】和【修改好的ZIP】。"), 400
         
-        # 【内存优化】直接使用流加载原包
         env = UnityPy.load(orig_file.stream)
         zip_data = BytesIO(mod_zip.read())
         
@@ -211,13 +186,16 @@ def repack():
                             raw_json_str = zf.read(actual_file_path).decode('utf-8')
                             cleaned_str = clean_json_string(raw_json_str)
                             
-                            # 【核心优化】使用 json5 读取用户修改的文件！
-                            # 这意味着用户可以在 JSON 里面自由写注释 //，保留尾随逗号，都不会报错！
-                            new_tree = json5.loads(cleaned_str)
+                            # 打包读取用户数据时，同样使用极速/兼容混合模式
+                            try:
+                                new_tree = json.loads(cleaned_str)
+                            except json.JSONDecodeError:
+                                new_tree = json5.loads(cleaned_str)
+
                             collapsed_tree = transform_json_tree(new_tree, mode='collapse')
                             obj.save_typetree(collapsed_tree)
                         except Exception as e:
-                            print(f"[打包警告] 回填 {file_path} 失败，可能是用户修改的 JSON 存在严重语法错误: {e}")
+                            print(f"[打包警告] 回填 {file_path} 失败: {e}")
 
         out_bundle = BytesIO()
         out_bundle.write(env.file.save(packer="lz4"))
@@ -226,5 +204,3 @@ def repack():
         return send_file(out_bundle, mimetype='application/octet-stream', as_attachment=True, download_name=f"modded_{orig_file.filename}")
     except Exception as e:
          return render_template('error.html', msg=f"打包失败！请检查文件格式。错误详情: {e}"), 500
-    finally:
-        engine_lock.release()
