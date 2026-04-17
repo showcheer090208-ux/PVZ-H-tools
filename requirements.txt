@@ -5,3 +5,4 @@ gunicorn
 supabase
 python-dotenv
 Flask-Limiter
+requests

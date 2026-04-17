@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}搜索结果: {{ query }} - PVZH 云端工坊{% endblock %}
+
+{% block content %}
+<style>
+@keyframes heartBurst {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.4); }
+    60% { transform: scale(0.8); }
+    100% { transform: scale(1); }
+}
+.heart-liked { color: #ef4444 !important; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; animation: heartBurst 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.heart-unliked { color: #9ca3af; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; transition: color 0.2s; }
+.heart-unliked:hover { color: #ef4444; }
+.content-collapse-enter-active, .content-collapse-leave-active { transition: all 0.3s ease-in-out; max-height: 500px; opacity: 1; overflow: hidden; }
+.content-collapse-enter-from, .content-collapse-leave-to { max-height: 0; opacity: 0; margin-bottom: 0 !important; }
+</style>
+
+<div id="search-app" class="py-6 md:py-10 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto" v-cloak>
+    
+    <div class="mb-8 flex flex-col sm:flex-row sm:items-end justify-between border-b border-gray-100 pb-4">
+        <div>
+            <a href="/forum" class="inline-flex items-center text-gray-400 hover:text-blue-600 font-medium text-sm mb-3 transition-colors">
+                <span class="material-symbols-rounded text-[18px] mr-1">arrow_back</span> 返回社区
+            </a>
+            <h1 class="text-2xl font-extrabold text-gray-900 flex items-center">
+                <span class="material-symbols-rounded text-blue-500 mr-2 text-3xl">manage_search</span>
+                包含 "<span class="text-blue-600 mx-1">{{ query }}</span>" 的结果
+            </h1>
+            <p class="text-gray-500 text-sm mt-1">共找到 {{ posts|length }} 条相关帖子</p>
+        </div>
+        
+        {% raw %}
+        <div class="bg-gray-50 p-1 rounded-xl flex space-x-1 border border-gray-200 mt-4 sm:mt-0">
+            <button @click="setViewMode('comfortable')" :class="viewMode === 'comfortable' ? 'bg-white shadow-sm text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-700'" class="px-3 py-1.5 rounded-lg transition-all text-xs flex items-center">
+                <span class="material-symbols-rounded text-[16px] mr-1">view_stream</span> 宽敞
+            </button>
+            <button @click="setViewMode('compact')" :class="viewMode === 'compact' ? 'bg-white shadow-sm text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-700'" class="px-3 py-1.5 rounded-lg transition-all text-xs flex items-center">
+                <span class="material-symbols-rounded text-[16px] mr-1">format_list_bulleted</span> 紧凑
+            </button>
+        </div>
+        {% endraw %}
+    </div>
+
+    {% raw %}
+    <div class="space-y-4">
+        <transition-group name="list">
+            <a v-for="post in posts" :key="post.id" :href="'/post/' + post.id" 
+               :class="[viewMode === 'comfortable' ? 'p-5 md:p-6' : 'p-3 md:p-4']"
+               class="block bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group cursor-pointer overflow-hidden">
+                
+                <div v-if="post.is_pinned" class="flex items-center text-orange-500 text-xs font-bold mb-2">
+                    <span class="material-symbols-rounded text-[14px] mr-1">push_pin</span> 置顶推荐
+                </div>
+
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center">
+                        <div :class="viewMode === 'comfortable' ? 'w-10 h-10 mr-3' : 'w-8 h-8 mr-2.5 text-xs'" class="rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-500 font-bold uppercase overflow-hidden transition-all">
+                            <template v-if="post.profiles.avatar_url"><img :src="post.profiles.avatar_url" class="w-full h-full object-cover"></template>
+                            <template v-else>{{ post.profiles.username[0] }}</template>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-1">
+                                <span class="font-bold text-gray-900" :class="viewMode === 'comfortable' ? 'text-sm md:text-base' : 'text-sm'">{{ post.profiles.username }}</span>
+                                <template v-if="post.profiles.honor_title && viewMode === 'comfortable'">
+                                    <div class="flex items-center bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md border border-amber-100 ml-1">
+                                        <span class="material-symbols-rounded text-[14px] mr-0.5">{{ post.profiles.honor_icon || 'military_tech' }}</span>
+                                        <span class="text-[10px] font-bold">{{ post.profiles.honor_title }}</span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="text-[11px] text-gray-400 font-medium" :class="viewMode === 'comfortable' ? 'mt-0.5' : ''">
+                                <span>{{ post.formatted_time }}</span> <span class="mx-1.5">&middot;</span>
+                                <span class="text-blue-500 flex items-center inline-flex">
+                                    <span class="material-symbols-rounded text-[12px] mr-0.5">{{ post.categories.icon }}</span> {{ post.categories.name }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div :class="viewMode === 'comfortable' ? 'md:ml-13' : 'md:ml-10'">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <h3 :class="viewMode === 'comfortable' ? 'text-base md:text-lg mb-1' : 'text-sm md:text-base mb-0'" class="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{{ post.title }}</h3>
+                        
+                        <div v-if="currentUser && currentUser.is_admin" class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button @click.stop.prevent="togglePin(post)" :class="post.is_pinned ? 'text-orange-500 hover:bg-orange-50' : 'text-gray-300 hover:text-blue-500 hover:bg-blue-50'" class="p-1.5 rounded-lg transition-colors flex-shrink-0 ml-1" :title="post.is_pinned ? '取消置顶' : '设为置顶'">
+                                <span class="material-symbols-rounded text-[18px]">push_pin</span>
+                            </button>
+                            <button @click.stop.prevent="deletePost(post.id)" class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 ml-1" title="删除帖子">
+                                <span class="material-symbols-rounded text-[18px]">delete_forever</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <transition name="content-collapse">
+                        <div v-show="viewMode === 'comfortable'">
+                            <p class="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap line-clamp-3 mb-3">{{ post.content }}</p>
+                            
+                            <div v-if="post.image_urls && post.image_urls.length > 0" class="flex gap-2 mb-2">
+                                <div v-for="(img, idx) in post.image_urls.slice(0, 3)" :key="idx" class="w-24 h-24 rounded-xl overflow-hidden border border-gray-100">
+                                    <img :src="img" class="w-full h-full object-cover">
+                                </div>
+                                <div v-if="post.image_urls.length > 3" class="w-24 h-24 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 font-bold border border-gray-200">
+                                    +{{ post.image_urls.length - 3 }}
+                                </div>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+                
+                <div :class="viewMode === 'comfortable' ? 'md:ml-13 mt-3' : 'md:ml-10 mt-1'" class="flex items-center space-x-6 text-gray-400 transition-all">
+                    <div class="flex items-center text-xs hover:text-blue-500 transition-colors">
+                        <span class="material-symbols-rounded text-[18px] mr-1.5">chat_bubble</span> <span>{{ post.comment_count || 0 }}</span>
+                    </div>
+                    <button @click.stop.prevent="toggleLike(post)" class="flex items-center text-xs group cursor-pointer outline-none">
+                        <span class="material-symbols-rounded text-[18px] mr-1.5" :class="post.has_liked ? 'heart-liked' : 'heart-unliked'">favorite</span>
+                        <span :class="post.has_liked ? 'text-red-500 font-bold' : 'group-hover:text-red-500 transition-colors'">{{ post.like_count || 0 }}</span>
+                    </button>
+                </div>
+            </a>
+        </transition-group>
+        
+        <div v-if="posts.length === 0" class="text-center py-20">
+            <span class="material-symbols-rounded text-gray-200 text-7xl mb-4 block">search_off</span>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">未找到相关内容</h3>
+            <p class="text-gray-400 font-medium">换个关键词试试看吧</p>
+        </div>
+    </div>
+    {% endraw %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>[v-cloak] { display: none; } .md\:ml-13 { margin-left: 0; } @media (min-width: 768px) { .md\:ml-13 { margin-left: 3.25rem; } }</style>
+<script>
+const initialPosts = {{ posts | tojson | safe }};
+{% if current_user %}
+const currentUserData = {{ current_user | tojson | safe }};
+{% else %}
+const currentUserData = null;
+{% endif %}
+const userLikedPosts = {{ user_liked_post_ids | default([]) | tojson | safe }};
+
+const { createApp, ref } = Vue;
+
+createApp({
+    setup() {
+        const currentUser = ref(currentUserData);
+        const viewMode = ref(localStorage.getItem('forumViewMode') || 'comfortable');
+        
+        const setViewMode = (mode) => {
+            viewMode.value = mode;
+            localStorage.setItem('forumViewMode', mode); // 🚨 和首页共享同一个偏好设置！
+        };
+        
+        const posts = ref(initialPosts.map(p => ({
+            ...p,
+            has_liked: userLikedPosts.includes(p.id),
+            like_count: p.like_count || 0,
+            comment_count: p.comment_count || 0
+        })));
+
+        const togglePin = async (post) => {
+            if (!confirm(`确定要${post.is_pinned ? '取消置顶' : '置顶'}吗？`)) return;
+            try {
+                const response = await fetch(`/api/post/pin/${post.id}`, { method: 'POST' });
+                if (response.ok) { post.is_pinned = (await response.json()).is_pinned; } 
+            } catch (error) { alert('网络错误'); }
+        };
+
+        const toggleLike = async (post) => {
+            if (!currentUser.value) { alert('请先登录后再点赞！'); return; }
+            post.has_liked = !post.has_liked;
+            post.like_count += post.has_liked ? 1 : -1;
+            try {
+                const response = await fetch(`/api/post/like/${post.id}`, { method: 'POST' });
+                if (!response.ok) throw new Error();
+            } catch (error) {
+                post.has_liked = !post.has_liked;
+                post.like_count += post.has_liked ? 1 : -1;
+            }
+        };
+
+        const deletePost = async (postId) => {
+            if (!confirm('确定要删除这篇帖子吗？此操作不可撤销。')) return;
+            try {
+                const response = await fetch(`/api/post/delete/${postId}`, { method: 'DELETE' });
+                if (response.ok) { posts.value = posts.value.filter(p => p.id !== postId); } 
+            } catch (error) { alert('网络错误'); }
+        };
+
+        return { posts, currentUser, viewMode, setViewMode, toggleLike, togglePin, deletePost };
+    }
+}).mount('#search-app');
+</script>
+{% endblock %}

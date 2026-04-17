@@ -27,6 +27,12 @@
                     <span class="font-extrabold text-lg md:text-xl tracking-tight text-gray-900 group-hover:text-blue-600 transition-colors">PVZH 工坊</span>
                 </a>
                 
+                <form action="/search" method="GET" class="relative hidden sm:flex items-center ml-4 mr-4 group">
+                    <span class="material-symbols-rounded absolute left-3 text-gray-400 text-[20px] group-focus-within:text-blue-500 transition-colors">search</span>
+                    <input type="text" name="q" placeholder="搜索全站帖子..." required
+                           class="bg-gray-100/80 border border-transparent text-sm rounded-2xl pl-10 pr-4 py-2 w-48 focus:w-64 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none transition-all duration-300 placeholder-gray-400 text-gray-700">
+                </form>
+
                 <div class="flex items-center">
                     {% if current_user %}
                         <a href="/profile" class="flex items-center space-x-2 bg-gray-50 hover:bg-gray-100 rounded-full pr-3 pl-1 py-1 border border-gray-200 transition-colors duration-200">
@@ -74,6 +80,31 @@
         </div>
     </nav>
 
+    <script>
+        // 1. 获取后端渲染的当前用户 ID（如果未登录则为空字符串）
+        const currentUserId = "{{ current_user.id if current_user else '' }}";
+        
+        // 2. 读取浏览器本地记录的“上一次用户 ID”
+        const lastUserId = localStorage.getItem('forum_current_user_id') || '';
+    
+        // 3. 核心逻辑：如果当前页面的用户状态和本地记录不一致，说明发生了登录或登出！
+        if (currentUserId !== lastUserId) {
+            // 更新本地记录
+            localStorage.setItem('forum_current_user_id', currentUserId);
+            // 写入一个时间戳，专门用来触发 storage 事件，通知其他标签页
+            localStorage.setItem('forum_auth_sync', Date.now().toString());
+        }
+    
+        // 4. 监听其他标签页传来的广播
+        window.addEventListener('storage', function(event) {
+            // 如果侦测到其他标签页触发了 'forum_auth_sync'
+            if (event.key === 'forum_auth_sync') {
+                console.log("检测到其他标签页的登录/登出状态改变，正在同步...");
+                // 强制刷新当前页面，让 Flask 重新读取最新的 Cookie 渲染页面
+                window.location.reload();
+            }
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -2,6 +2,41 @@
 {% block title %}社区 - PVZH 云端工坊{% endblock %}
 
 {% block content %}
+<style>
+@keyframes heartBurst {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.4); }
+    60% { transform: scale(0.8); }
+    100% { transform: scale(1); }
+}
+.heart-liked {
+    color: #ef4444 !important;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    animation: heartBurst 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+.heart-unliked {
+    color: #9ca3af;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    transition: color 0.2s;
+}
+.heart-unliked:hover {
+    color: #ef4444;
+}
+
+/* UI 密度折叠动画辅助 */
+.content-collapse-enter-active, .content-collapse-leave-active {
+    transition: all 0.3s ease-in-out;
+    max-height: 500px; /* 预估最大高度 */
+    opacity: 1;
+    overflow: hidden;
+}
+.content-collapse-enter-from, .content-collapse-leave-to {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0 !important;
+}
+</style>
+
 <div id="forum-app" class="py-6 md:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" v-cloak>
     <div class="mb-8 text-center lg:text-left">
         <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mb-2">工坊交流社区</h1>
@@ -9,7 +44,6 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-8">
-        <!-- 左侧导航 -->
         <div class="md:col-span-1 space-y-6">
             <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 hidden md:block sticky top-24">
                 <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 ml-2">探索板块</h2>
@@ -33,8 +67,8 @@
             {% if current_user %}
             <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 sm:p-6 transition-all focus-within:shadow-md focus-within:border-blue-200">
                 <div class="flex items-start space-x-4">
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-400 flex-shrink-0 flex items-center justify-center text-white font-bold uppercase shadow-sm">
-                        {{ current_user.username[0] }}
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-400 flex-shrink-0 flex items-center justify-center text-white font-bold uppercase shadow-sm overflow-hidden">
+                        {% if current_user.avatar_url %}<img src="{{ current_user.avatar_url }}" class="w-full h-full object-cover">{% else %}{{ current_user.username[0] }}{% endif %}
                     </div>
                     <div class="flex-grow space-y-3">
                         <input type="text" v-model="newPost.title" placeholder="起个响亮的标题..." maxlength="50" class="w-full text-lg font-bold bg-transparent border-none focus:ring-0 p-0 text-gray-900 placeholder-gray-400 outline-none">
@@ -62,12 +96,10 @@
                                 </button>
                             </div>
                             
-                            <!-- 🚨 修复 Jinja2/Vue 冲突：使用 v-text 代替大括号 -->
                             <button @click="submitPost" :disabled="isSubmitting || !newPost.title || !newPost.content || !newPost.categoryId || isUploadingImages" :class="(isSubmitting || !newPost.title || !newPost.content || !newPost.categoryId || isUploadingImages) ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95 shadow-sm'" class="w-full sm:w-auto font-bold py-2.5 px-6 rounded-xl transition duration-200 flex justify-center items-center">
                                 <span v-if="isSubmitting || isUploadingImages" class="material-symbols-rounded animate-spin mr-1.5 text-[20px]">progress_activity</span>
                                 <span v-else class="material-symbols-rounded mr-1.5 text-[20px]">send</span> 
-                                <span v-if="isUploadingImages">压缩上传中...</span>
-                                <span v-else>发布</span>
+                                <span v-text="isUploadingImages ? '压缩上传中...' : '发布'"></span>
                             </button>
                         </div>
                     </div>
@@ -83,31 +115,45 @@
             {% endif %}
 
             {% raw %}
+            <div class="flex justify-between items-end mb-2 px-1 mt-2">
+                <h3 class="text-lg font-bold text-gray-800 tracking-tight">最新动态</h3>
+                <div class="bg-gray-100/80 p-1 rounded-xl flex space-x-1 border border-gray-200/50 backdrop-blur-sm">
+                    <button @click="setViewMode('comfortable')" :class="viewMode === 'comfortable' ? 'bg-white shadow-sm text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-700'" class="px-3 py-1.5 rounded-lg transition-all text-xs flex items-center">
+                        <span class="material-symbols-rounded text-[16px] mr-1">view_stream</span> 宽敞
+                    </button>
+                    <button @click="setViewMode('compact')" :class="viewMode === 'compact' ? 'bg-white shadow-sm text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-700'" class="px-3 py-1.5 rounded-lg transition-all text-xs flex items-center">
+                        <span class="material-symbols-rounded text-[16px] mr-1">format_list_bulleted</span> 紧凑
+                    </button>
+                </div>
+            </div>
+
             <div class="space-y-4">
                 <transition-group name="list">
-                    <a v-for="post in filteredPosts" :key="post.id" :href="'/post/' + post.id" class="block bg-white p-5 md:p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group cursor-pointer">
+                    <a v-for="post in filteredPosts" :key="post.id" :href="'/post/' + post.id" 
+                       :class="[viewMode === 'comfortable' ? 'p-5 md:p-6' : 'p-3 md:p-4']"
+                       class="block bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group cursor-pointer overflow-hidden">
                         
                         <div v-if="post.is_pinned" class="flex items-center text-orange-500 text-xs font-bold mb-2">
                             <span class="material-symbols-rounded text-[14px] mr-1">push_pin</span> 置顶推荐
                         </div>
 
-                        <div class="flex justify-between items-start mb-3">
+                        <div class="flex justify-between items-start mb-2">
                             <div class="flex items-center">
-                                <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3 border border-gray-200 text-gray-500 font-bold uppercase overflow-hidden">
+                                <div :class="viewMode === 'comfortable' ? 'w-10 h-10 mr-3' : 'w-8 h-8 mr-2.5 text-xs'" class="rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-500 font-bold uppercase overflow-hidden transition-all">
                                     <template v-if="post.profiles.avatar_url"><img :src="post.profiles.avatar_url" class="w-full h-full object-cover"></template>
                                     <template v-else>{{ post.profiles.username[0] }}</template>
                                 </div>
                                 <div>
                                     <div class="flex items-center space-x-1">
-                                        <span class="font-bold text-gray-900 text-sm md:text-base">{{ post.profiles.username }}</span>
-                                        <template v-if="post.profiles.honor_title">
+                                        <span class="font-bold text-gray-900" :class="viewMode === 'comfortable' ? 'text-sm md:text-base' : 'text-sm'">{{ post.profiles.username }}</span>
+                                        <template v-if="post.profiles.honor_title && viewMode === 'comfortable'">
                                             <div class="flex items-center bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md border border-amber-100 ml-1">
                                                 <span class="material-symbols-rounded text-[14px] mr-0.5">{{ post.profiles.honor_icon || 'military_tech' }}</span>
                                                 <span class="text-[10px] font-bold">{{ post.profiles.honor_title }}</span>
                                             </div>
                                         </template>
                                     </div>
-                                    <div class="text-[11px] md:text-xs text-gray-400 font-medium mt-0.5">
+                                    <div class="text-[11px] text-gray-400 font-medium" :class="viewMode === 'comfortable' ? 'mt-0.5' : ''">
                                         <span>{{ post.formatted_time }}</span> <span class="mx-1.5">&middot;</span>
                                         <span class="text-blue-500 flex items-center inline-flex">
                                             <span class="material-symbols-rounded text-[12px] mr-0.5">{{ post.categories.icon }}</span> {{ post.categories.name }}
@@ -117,29 +163,44 @@
                             </div>
                         </div>
 
-                        <div class="pl-0 md:ml-13">
+                        <div :class="viewMode === 'comfortable' ? 'md:ml-13' : 'md:ml-10'">
                             <div class="flex items-center justify-between mb-1.5">
-                                <h3 class="font-bold text-gray-900 text-base md:text-lg group-hover:text-blue-600 transition-colors">{{ post.title }}</h3>
-                                <button v-if="currentUser && currentUser.is_admin" @click.stop.prevent="deletePost(post.id)" class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 ml-2">
-                                    <span class="material-symbols-rounded text-[18px]">delete_forever</span>
-                                </button>
+                                <h3 :class="viewMode === 'comfortable' ? 'text-base md:text-lg mb-1' : 'text-sm md:text-base mb-0'" class="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{{ post.title }}</h3>
+                                
+                                <div v-if="currentUser && currentUser.is_admin" class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button @click.stop.prevent="togglePin(post)" :class="post.is_pinned ? 'text-orange-500 hover:bg-orange-50' : 'text-gray-300 hover:text-blue-500 hover:bg-blue-50'" class="p-1.5 rounded-lg transition-colors flex-shrink-0 ml-1" :title="post.is_pinned ? '取消置顶' : '设为置顶'">
+                                        <span class="material-symbols-rounded text-[18px]">push_pin</span>
+                                    </button>
+                                    <button @click.stop.prevent="deletePost(post.id)" class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 ml-1" title="删除帖子">
+                                        <span class="material-symbols-rounded text-[18px]">delete_forever</span>
+                                    </button>
+                                </div>
                             </div>
-                            <p class="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap line-clamp-3 mb-3">{{ post.content }}</p>
                             
-                            <div v-if="post.image_urls && post.image_urls.length > 0" class="flex gap-2 mb-2">
-                                <div v-for="(img, idx) in post.image_urls.slice(0, 3)" :key="idx" class="w-24 h-24 rounded-xl overflow-hidden border border-gray-100">
-                                    <img :src="img" class="w-full h-full object-cover">
+                            <transition name="content-collapse">
+                                <div v-show="viewMode === 'comfortable'">
+                                    <p class="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap line-clamp-3 mb-3">{{ post.content }}</p>
+                                    
+                                    <div v-if="post.image_urls && post.image_urls.length > 0" class="flex gap-2 mb-2">
+                                        <div v-for="(img, idx) in post.image_urls.slice(0, 3)" :key="idx" class="w-24 h-24 rounded-xl overflow-hidden border border-gray-100">
+                                            <img :src="img" class="w-full h-full object-cover">
+                                        </div>
+                                        <div v-if="post.image_urls.length > 3" class="w-24 h-24 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 font-bold border border-gray-200">
+                                            +{{ post.image_urls.length - 3 }}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div v-if="post.image_urls.length > 3" class="w-24 h-24 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 font-bold border border-gray-200">
-                                    +{{ post.image_urls.length - 3 }}
-                                </div>
-                            </div>
+                            </transition>
                         </div>
                         
-                        <div class="pl-0 md:ml-13 mt-3 flex items-center space-x-5 text-gray-400">
+                        <div :class="viewMode === 'comfortable' ? 'md:ml-13 mt-3' : 'md:ml-10 mt-1'" class="flex items-center space-x-6 text-gray-400 transition-all">
                             <div class="flex items-center text-xs hover:text-blue-500 transition-colors">
-                                <span class="material-symbols-rounded text-[18px] mr-1">chat_bubble</span> 评论
+                                <span class="material-symbols-rounded text-[18px] mr-1.5">chat_bubble</span> <span>{{ post.comment_count || 0 }}</span>
                             </div>
+                            <button @click.stop.prevent="toggleLike(post)" class="flex items-center text-xs group cursor-pointer outline-none">
+                                <span class="material-symbols-rounded text-[18px] mr-1.5" :class="post.has_liked ? 'heart-liked' : 'heart-unliked'">favorite</span>
+                                <span :class="post.has_liked ? 'text-red-500 font-bold' : 'group-hover:text-red-500 transition-colors'">{{ post.like_count || 0 }}</span>
+                            </button>
                         </div>
                     </a>
                 </transition-group>
@@ -168,13 +229,10 @@
 </style>
 
 <script>
-// 渲染 Jinja2 变量
 const initialCategories = {{ categories | tojson | safe }};
 const initialPosts = {{ posts | tojson | safe }};
 const supabaseUrl = "{{ supabase_url }}";
 const supabaseKey = "{{ supabase_key }}";
-
-// 🚨 接收后端传来的通行证
 const accessToken = "{{ access_token if access_token else '' }}";
 
 {% if current_user %}
@@ -183,37 +241,78 @@ const currentUserData = {{ current_user | tojson | safe }};
 const currentUserData = null;
 {% endif %}
 
-// 🚨 【核心修复】如果用户已登录，就把 Token 放进全局请求头里
-const supabaseOptions = accessToken ? {
-    global: {
-        headers: {
-            Authorization: `Bearer ${accessToken}`
-        }
-    }
-} : {};
-
-// 初始化带身份认证的客户端
+const userLikedPosts = {{ user_liked_post_ids | default([]) | tojson | safe }};
+const supabaseOptions = accessToken ? { global: { headers: { Authorization: `Bearer ${accessToken}` } } } : {};
 const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey, supabaseOptions);
 
-// --- 开启 raw 模式：以下代码交由 Vue 接管 ---
 {% raw %}
 const { createApp, ref, computed } = Vue;
 
 createApp({
     setup() {
         const categories = ref(initialCategories);
-        const posts = ref(initialPosts);
         const currentCategoryId = ref(null);
         const currentUser = ref(currentUserData);
+        
+        // 🚨 版型切换控制 (自动读取上次偏好)
+        const viewMode = ref(localStorage.getItem('forumViewMode') || 'comfortable');
+        const setViewMode = (mode) => {
+            viewMode.value = mode;
+            localStorage.setItem('forumViewMode', mode);
+        };
+        
+        const posts = ref(initialPosts.map(p => ({
+            ...p,
+            has_liked: userLikedPosts.includes(p.id),
+            like_count: p.like_count || 0,
+            comment_count: p.comment_count || 0
+        })));
 
         const newPost = ref({ title: '', content: '', categoryId: '', imageUrls: [] });
         const isSubmitting = ref(false);
         const isUploadingImages = ref(false); 
 
+        // 🚨 排序逻辑：将置顶的帖子动态顶上去
         const filteredPosts = computed(() => {
-            if (currentCategoryId.value === null) return posts.value;
-            return posts.value.filter(p => p.category_id === currentCategoryId.value);
+            let filtered = currentCategoryId.value === null ? posts.value : posts.value.filter(p => p.category_id === currentCategoryId.value);
+            return filtered.sort((a, b) => {
+                if (a.is_pinned === b.is_pinned) { return b.id - a.id; } // ID 大的（新的）排前面
+                return a.is_pinned ? -1 : 1; // 置顶的无条件排在最前
+            });
         });
+
+        // ================= 后端交互 API =================
+        
+        // 置顶切换
+        const togglePin = async (post) => {
+            const actionStr = post.is_pinned ? '取消置顶' : '置顶';
+            if (!confirm(`确定要${actionStr}这篇帖子吗？`)) return;
+
+            try {
+                const response = await fetch(`/api/post/pin/${post.id}`, { method: 'POST' });
+                if (response.ok) {
+                    const result = await response.json();
+                    post.is_pinned = result.is_pinned; // Vue 检测到变动，由于我们的 sorted computed 属性，帖子会自动飘上去或降下来！
+                } else {
+                    alert('操作失败，可能权限不足');
+                }
+            } catch (error) {
+                alert('网络错误');
+            }
+        };
+
+        const toggleLike = async (post) => {
+            if (!currentUser.value) { alert('请先登录后再点赞！'); return; }
+            post.has_liked = !post.has_liked;
+            post.like_count += post.has_liked ? 1 : -1;
+            try {
+                const response = await fetch(`/api/post/like/${post.id}`, { method: 'POST' });
+                if (!response.ok) throw new Error('Network Error');
+            } catch (error) {
+                post.has_liked = !post.has_liked;
+                post.like_count += post.has_liked ? 1 : -1;
+            }
+        };
 
         const compressImage = (file) => {
             return new Promise((resolve) => {
@@ -226,7 +325,6 @@ createApp({
                         const scaleSize = MAX_WIDTH / img.width;
                         canvas.width = MAX_WIDTH;
                         canvas.height = img.height * scaleSize;
-
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                         canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.7);
@@ -240,28 +338,18 @@ createApp({
         const handleImageUpload = async (event) => {
             const files = event.target.files;
             if (files.length === 0) return;
-            
             isUploadingImages.value = true;
             try {
                 for (let file of files) {
                     const compressedBlob = await compressImage(file);
                     const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.webp`;
                     const filePath = `post_images/${fileName}`;
-
-                    const { error: uploadError } = await supabaseClient.storage
-                        .from('forum-images')
-                        .upload(filePath, compressedBlob, { contentType: 'image/webp' });
-
+                    const { error: uploadError } = await supabaseClient.storage.from('forum-images').upload(filePath, compressedBlob, { contentType: 'image/webp' });
                     if (uploadError) throw uploadError;
-
-                    const { data: publicUrlData } = supabaseClient.storage
-                        .from('forum-images')
-                        .getPublicUrl(filePath);
-
+                    const { data: publicUrlData } = supabaseClient.storage.from('forum-images').getPublicUrl(filePath);
                     newPost.value.imageUrls.push(publicUrlData.publicUrl);
                 }
             } catch (error) {
-                console.error("上传图床失败", error);
                 alert('图片上传失败，请确保您已登录。');
             } finally {
                 isUploadingImages.value = false;
@@ -269,9 +357,7 @@ createApp({
             }
         };
 
-        const removeImage = (index) => {
-            newPost.value.imageUrls.splice(index, 1);
-        };
+        const removeImage = (index) => { newPost.value.imageUrls.splice(index, 1); };
 
         const submitPost = async () => {
             if (!newPost.value.title || !newPost.value.content || !newPost.value.categoryId) return;
@@ -281,14 +367,11 @@ createApp({
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        title: newPost.value.title, 
-                        content: newPost.value.content, 
-                        category_id: newPost.value.categoryId,
-                        image_urls: newPost.value.imageUrls
+                        title: newPost.value.title, content: newPost.value.content, 
+                        category_id: newPost.value.categoryId, image_urls: newPost.value.imageUrls
                     })
                 });
-                const result = await response.json();
-                if (response.ok) { window.location.reload(); } else { alert(result.message || '发布失败'); }
+                if (response.ok) { window.location.reload(); } else { alert('发布失败'); }
             } catch (error) { alert('连接服务器失败'); } finally { isSubmitting.value = false; }
         };
 
@@ -303,8 +386,8 @@ createApp({
 
         return { 
             categories, posts, currentUser, currentCategoryId, filteredPosts, 
-            newPost, isSubmitting, isUploadingImages, 
-            submitPost, deletePost, handleImageUpload, removeImage 
+            newPost, isSubmitting, isUploadingImages, viewMode, setViewMode,
+            submitPost, deletePost, handleImageUpload, removeImage, toggleLike, togglePin
         };
     }
 }).mount('#forum-app');
