@@ -6,3 +6,4 @@ supabase
 python-dotenv
 Flask-Limiter
 requests
+json5
