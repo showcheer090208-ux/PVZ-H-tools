@@ -11,13 +11,6 @@
         </div>
         <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">资源综合管理</h1>
         <p class="text-gray-500 mt-3 text-sm md:text-base max-w-2xl mx-auto">专业级解包与打包套件。支持单文件提取贴图与修改底层 JSON 数据。</p>
-        
-        <!-- 【新增】引擎状态指示灯 -->
-        <div class="mt-4 flex justify-center items-center h-8">
-            <div id="engine-status" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-500 transition-colors duration-300">
-                <span class="material-symbols-rounded animate-spin text-[18px] mr-1">sync</span> 正在获取引擎状态...
-            </div>
-        </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
@@ -46,7 +39,7 @@
                                class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition cursor-pointer p-3 relative z-10">
                     </div>
                     
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/30 transition-all transform active:scale-[0.98] flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/30 transition-all transform active:scale-[0.98] flex justify-center items-center">
                         <span class="material-symbols-rounded mr-2 text-[22px]">cloud_download</span> 
                         开始解包提取 (限 10MB)
                     </button>
@@ -88,7 +81,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-lg transition-all transform active:scale-[0.98] flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button type="submit" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-lg transition-all transform active:scale-[0.98] flex justify-center items-center">
                         <span class="material-symbols-rounded mr-2 text-[22px]">auto_fix_high</span>
                         执行合成并导出
                     </button>
@@ -103,59 +96,14 @@
 {% block scripts %}
 <script>
     /**
-     * 定时轮询引擎状态，防止多人并发撑爆内存
-     */
-    async function checkEngineStatus() {
-        try {
-            const response = await fetch('/api/unity/status');
-            const data = await response.json();
-            
-            const statusBadge = document.getElementById('engine-status');
-            const submitButtons = document.querySelectorAll('button[type="submit"]');
-
-            if (data.is_idle) {
-                statusBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-50 text-green-600 border border-green-200 transition-colors duration-300";
-                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 mr-2 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span> 引擎空闲中';
-                
-                submitButtons.forEach(btn => {
-                    // 如果不是当前正在处理自己任务的按钮，就释放禁用
-                    if (!btn.hasAttribute('data-processing')) {
-                        btn.disabled = false;
-                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    }
-                });
-            } else {
-                statusBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-orange-50 text-orange-600 border border-orange-200 transition-colors duration-300";
-                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-orange-500 mr-2 animate-ping"></span> 引擎正在处理任务...';
-                
-                submitButtons.forEach(btn => {
-                    // 无论如何强制锁定别人点击
-                    if (!btn.hasAttribute('data-processing')) {
-                        btn.disabled = true;
-                        btn.classList.add('opacity-50', 'cursor-not-allowed');
-                    }
-                });
-            }
-        } catch (error) {
-            console.warn("无法获取引擎状态", error);
-        }
-    }
-
-    // 页面加载后立即检查，随后每 3 秒检查一次
-    checkEngineStatus();
-    const statusInterval = setInterval(checkEngineStatus, 3000);
-
-    /**
      * 异步拦截表单提交：处理大文件下载并重置按钮状态
      */
     async function handleAsyncDownload(event, formElement, loadingText) {
-        event.preventDefault(); // 阻止原生表单提交
+        event.preventDefault(); 
         
         const btn = formElement.querySelector('button[type="submit"]');
-        const originalHtml = btn.innerHTML; // 记录按钮原始状态
+        const originalHtml = btn.innerHTML; 
 
-        // 标记为正在处理中，防止被状态轮询脚本强制解开
-        btn.setAttribute('data-processing', 'true');
         btn.innerHTML = `<span class="material-symbols-rounded animate-spin mr-2 text-[22px]">progress_activity</span> ${loadingText}...`;
         btn.classList.add('opacity-80', 'cursor-not-allowed');
         btn.disabled = true;
@@ -168,14 +116,12 @@
             });
 
             if (response.ok) {
-                // 如果后端返回成功，转换为 Blob 触发浏览器下载
                 const blob = await response.blob();
                 const downloadUrl = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = downloadUrl;
                 
-                // 尝试从响应头读取服务器指定的文件名
                 let filename = 'download.zip';
                 const disposition = response.headers.get('Content-Disposition');
                 if (disposition && disposition.indexOf('attachment') !== -1) {
@@ -189,11 +135,9 @@
                 document.body.appendChild(a);
                 a.click();
                 
-                // 清理内存
                 window.URL.revokeObjectURL(downloadUrl);
                 a.remove();
             } else {
-                // 遇到错误（超大、忙碌、未登录等），直接覆盖页面显示 Flask 错误模板
                 const errorHtml = await response.text();
                 document.open();
                 document.write(errorHtml);
@@ -203,12 +147,9 @@
             console.error('上传/下载异常:', error);
             alert("网络连接异常或文件过大导致超时，请重试。");
         } finally {
-            // 无论成功还是报错，移除标记并恢复按钮状态
-            btn.removeAttribute('data-processing');
             btn.innerHTML = originalHtml;
             btn.classList.remove('opacity-80', 'cursor-not-allowed');
-            // 触发一次立即检查，如果此时后端锁刚好释放，就能直接变绿
-            checkEngineStatus(); 
+            btn.disabled = false;
         }
     }
 </script>
