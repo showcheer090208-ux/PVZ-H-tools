@@ -27,40 +27,48 @@ class DataManager:
 
         # 1. 加载 UUID
         if os.path.exists(uuid_path):
-            # 优化正则：更严格的 UUID 匹配，兼容各类横线/下划线组合
-            pattern = re.compile(r"(\d+)\s*[-—_]+\s*([0-9a-fA-F-]+)\s*[-—_]+\s*(.+)")
-            
-            # 关键修复：使用 utf-8-sig 自动处理并剔除 Windows 的 BOM 头
+            # 保持 utf-8-sig 应对 Windows 记事本可能带来的 BOM 头
             with open(uuid_path, "r", encoding="utf-8-sig") as f:
                 for line in f:
-                    # 关键修复：剔除常见的零宽字符及两端空白
+                    # 剔除零宽字符及首尾空白
                     line = line.strip().replace('\u200b', '')
-                    if not line or "——" not in line: continue
                     
-                    match = pattern.search(line)
-                    if match:
-                        guid, uuid_str, name = match.groups()
-                        c_id = int(guid.strip())
-                        
-                        # 清理卡牌名称内部可能多余的连续空格，统归为一个空格
-                        clean_name = re.sub(r'\s+', ' ', name.strip())
-                        clean_uuid = uuid_str.strip()
-                        
-                        # 简单的阵营判断
-                        zombie_keywords = ["僵尸", "急冻魔", "霹雳舞王", "不死女妖", "无穷小子", "海妖", "教授", "锈铁侠", "超尸", "摔跤狂", "Z机甲", "错误"]
-                        # 确保 Faction 输出是干净的整型
-                        faction = 1 if any(kw in clean_name for kw in zombie_keywords) else 0
+                    # 如果是空行或者没有你指定的标准分隔符，直接跳过
+                    if not line or "——————" not in line: 
+                        continue
+                    
+                    # 核心修改：直接暴力切片，抛弃正则
+                    parts = line.split("——————")
+                    
+                    # 确保切出来至少有 3 块 (序号, UUID, 卡牌名)
+                    if len(parts) >= 3:
+                        try:
+                            # 分别提取并清除周围可能存在的 Tab 或空格
+                            c_id = int(parts[0].strip())
+                            clean_uuid = parts[1].strip()
+                            raw_name = parts[2].strip()
+                            
+                            # 清理卡牌名称内部多余的连续空格（比如把"豌豆  射手"变成"豌豆 射手"）
+                            clean_name = re.sub(r'\s+', ' ', raw_name)
+                            
+                            # 简单的阵营判断
+                            zombie_keywords = ["僵尸", "急冻魔", "霹雳舞王", "不死女妖", "无穷小子", "海妖", "教授", "锈铁侠", "超尸", "摔跤狂", "Z机甲", "错误"]
+                            faction = 1 if any(kw in clean_name for kw in zombie_keywords) else 0
 
-                        self.card_list.append({
-                            "name": clean_name,
-                            "CardGuid": c_id,
-                            "Guid": clean_uuid,
-                            "Faction": faction
-                        })
+                            self.card_list.append({
+                                "name": clean_name,
+                                "CardGuid": c_id,
+                                "Guid": clean_uuid,
+                                "Faction": faction
+                            })
+                        except ValueError as e:
+                            # 容错：如果序号转数字失败，打印出来方便排查
+                            print(f"解析异常(数据跳过): {line} -> 错误信息: {e}")
+                            continue
 
-        # 2. 加载卡组名称
+        # 2. 加载卡组名称 (保持上一版的读取逻辑)
         if os.path.exists(deck_path):
-            with open(deck_path, "r", encoding="utf-8-sig") as f: # 同样加上 -sig 护航
+            with open(deck_path, "r", encoding="utf-8-sig") as f:
                 content = f.read()
             blocks = re.split(r'\n\s*\n', content)
             for block in blocks:
@@ -79,7 +87,6 @@ class DataManager:
                         self.valid_eng_ids.add(eng_id)
                         self.hero_decks[hero_name].append({
                             "eng_id": eng_id,
-                            # 同样清理卡组名称可能带来的脏字符
                             "chn_name": re.sub(r'\s+', ' ', parts[-1].strip())
                         })
 
