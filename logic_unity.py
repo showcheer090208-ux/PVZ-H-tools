@@ -5,6 +5,7 @@ import UnityPy
 from io import BytesIO
 import zipfile
 from logic_data import data_manager
+import uuid
 
 class UnityProcessor:
     def __init__(self):
@@ -54,12 +55,20 @@ class UnityProcessor:
                             tree = obj.read_typetree()
                             m_name = tree.get("m_Name", "")
                             if m_name in mods_dict:
+                                # 修改：使用 .get() 容错，并为缺失的 Guid 生成随机 uuid
                                 tree["Cards"]["CardEntries"] = [{
-                                    "Faction": c['faction'], "CardGuid": c['cardguid'],
-                                    "Guid": c['guid'], "NumCopies": c['count'], "Filter": ""
+                                    "Faction": c.get('faction', 'Plant'), 
+                                    "CardGuid": c['cardguid'],
+                                    "Guid": c.get('guid', str(uuid.uuid4())), 
+                                    "NumCopies": c.get('count', 1), 
+                                    "Filter": ""
                                 } for c in mods_dict[m_name]]
                                 obj.save_typetree(tree)
-                        except: continue
+                        except Exception as e:
+                            print(f"回填卡组 {m_name} 失败: {e}") 
+                            continue
+                
+                # 回写文件流
                 zf.writestr(b_name, env.file.save(packer="lz4"))
         memory_zip.seek(0)
         return memory_zip
