@@ -569,14 +569,21 @@
                             if (res.data.raw_bundle_data) {
                                 localStorage.setItem('pvzh_raw_bundle_data', JSON.stringify(res.data.raw_bundle_data));
                             }
+                            
+                            // 核心修复：确保基础字典加载完毕后，再执行 URL 导入！
+                            const urlParams = new URLSearchParams(window.location.search);
+                            if (urlParams.has('import')) {
+                                importDeckFromCode(urlParams.get('import'));
+                                // 导入完成后清除地址栏参数
+                                window.history.replaceState({}, '', window.location.pathname);
+                            }
+                            
                         } else {
                             throw new Error(res.msg || "后端返回异常");
                         }
                     } catch (error) {
-                        console.warn("无法连接后端 API，加载演示数据供预览...", error);
-                        // 注入演示数据供前端预览体验
-                        loadMockData();
-                        showToast("API 异常，已启用离线演示数据", "info");
+                        console.warn("API 异常", error);
+                        loadMockData(); // 备用数据
                     } finally {
                         isLoadingData.value = false;
                     }
@@ -602,17 +609,20 @@
                     if (saved) {
                         deckCards.value = JSON.parse(saved);
                     } else {
-                        // 尝试从原始数据提取
                         try {
                             const allRaw = JSON.parse(localStorage.getItem('pvzh_raw_bundle_data') || '{}');
                             const original = allRaw[deck.eng_id];
                             if (original?.Cards?.CardEntries) {
-                                deckCards.value = original.Cards.CardEntries.map(e => ({
-                                    // 修复：强制转换为 String 避免纯数字和字符串数字对比失败
-                                    name: cardDb.value.find(c => String(c.CardGuid) === String(e.CardGuid))?.name || `未知卡牌(${e.CardGuid})`,
-                                    cardguid: e.CardGuid,
-                                    count: e.NumCopies
-                                }));
+                                deckCards.value = original.Cards.CardEntries.map(e => {
+                                    const cInfo = cardDb.value.find(c => String(c.CardGuid) === String(e.CardGuid));
+                                    return {
+                                        name: cInfo?.name || `未知卡牌(${e.CardGuid})`,
+                                        cardguid: e.CardGuid,
+                                        count: e.NumCopies,
+                                        // 核心修复：读取原始包时补全阵营
+                                        faction: cInfo ? cInfo.Faction : (e.Faction || 0)
+                                    };
+                                });
                             } else {
                                 deckCards.value = [];
                             }
@@ -687,21 +697,29 @@
                 // ========== 导入功能 ==========
                 const importDeckFromCode = (code) => {
                     try {
-                        let cleanCode = code;
-                        // 尝试解析 URL 形式
-                        if (code.includes('?import=')) {
-                            const url = new URL(code);
-                            cleanCode = url.searchParams.get('import');
-                        }
-                        if (!cleanCode) throw new Error('无效的分享链接或代码');
+                        let cleanCode = code.trim(); // 修复：剔除复制粘贴带来的首尾空格
                         
+                        // 更健壮的 URL 提取方式
+                        if (cleanCode.includes('import=')) {
+                            try {
+                                const url = new URL(cleanCode);
+                                cleanCode = url.searchParams.get('import');
+                            } catch (e) {
+                                // 如果用户复制了不完整的 URL (例如没有 http://)，手动截取
+                                cleanCode = cleanCode.split('import=')[1].split('&')[0];
+                            }
+                        }
+                        
+                        if (!cleanCode) throw new Error('提取分享码失败');
+                        
+                        // 修复：atob 前剔除可能存在的换行符和多余空格
+                        cleanCode = cleanCode.replace(/\s/g, '');
                         const decoded = decodeURIComponent(atob(cleanCode));
                         const importData = JSON.parse(decoded);
                         
-                        if (importData.v !== 1) throw new Error('版本不兼容，请更新工坊');
+                        if (importData.v !== 1) throw new Error('分享码版本不兼容');
                         
                         if (importData.t === 'global') {
-                            // 全局多卡组导入
                             let importedCount = 0;
                             for (const [eng_id, cards] of Object.entries(importData.m)) {
                                 let targetExists = false;
@@ -715,8 +733,6 @@
                                     importedCount++;
                                 }
                             }
-                            
-                            // 刷新当前正在查看的卡组
                             if (currentDeck.value && importData.m[currentDeck.value.eng_id]) {
                                 selectDeck(currentDeck.value);
                             }
@@ -729,26 +745,27 @@
                                 targetDeck = decks.find(d => d.eng_id === importData.h);
                                 if (targetDeck) break;
                             }
-                            if (!targetDeck) throw new Error(`未找到英雄卡组: ${importData.h}`);
+                            if (!targetDeck) throw new Error(`未找到目标英雄: ${importData.h}`);
                             
                             selectDeck(targetDeck);
                             
                             deckCards.value = importData.c.map(cardItem => {
-                                // 修复：使用强制字符串全等匹配
                                 const cardInfo = cardDb.value.find(c => String(c.CardGuid) === String(cardItem.i));
                                 return {
                                     name: cardInfo ? cardInfo.name : `未知卡牌(${String(cardItem.i).slice(-8)})`,
                                     cardguid: cardItem.i,
-                                    count: cardItem.cnt
+                                    count: cardItem.cnt,
+                                    // 核心修复：导入时必须补全 Faction 阵营字段，否则打包时默认变植物！
+                                    faction: cardInfo ? cardInfo.Faction : 0 
                                 };
                             });
-                            saveToLocal(); // 导入后自动暂存
-                            showToast(`✨ 成功导入卡组：${importData.n}`, 'success');
+                            saveToLocal();
+                            showToast(`✨ 成功导入：${importData.n}`, 'success');
                         }
                         return true;
                     } catch (e) {
                         console.error('导入失败:', e);
-                        showToast(`导入失败：${e.message}`, 'error');
+                        showToast(`导入解析失败，请检查分享码`, 'error');
                         return false;
                     }
                 };
