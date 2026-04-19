@@ -228,7 +228,8 @@ def register():
         try:
             supabase.table("profiles").upsert({
                 "id": uid,
-                "username": username
+                "username": username,
+                "email": email
             }).execute()
         except Exception as e:
             current_app.logger.error(f"Profile creation failed for {uid}: {e}")
