@@ -163,21 +163,27 @@ def register():
     """注册处理"""
     email = request.form.get('email', '').strip()
     password = request.form.get('password')
-    confirm_password = request.form.get('confirm_password')
+    confirm_password = request.form.get('confirm_password')  # 现在能获取到了
     username = request.form.get('username', '').strip()
+    
+    # 兼容两种字段名：invitation_code（新版）和 invite_code（旧版）
     invite_code = request.form.get('invitation_code', '') or request.form.get('invite_code', '')
     invite_code = invite_code.strip().upper()
     
     # 1. 基础校验
-    if not all([email, password, username, invite_code]):
+    if not all([email, password, confirm_password, username, invite_code]):
+        print(f"[DEBUG] 缺失字段 - email:{email}, password:{bool(password)}, confirm:{bool(confirm_password)}, username:{username}, invite_code:{invite_code}")
         return render_template('login.html', error="请填写所有字段", tab="register")
     
+    # 2. 密码一致性校验
     if password != confirm_password:
         return render_template('login.html', error="两次输入的密码不一致", tab="register")
     
+    # 3. 密码长度校验
     if len(password) < 6:
         return render_template('login.html', error="密码长度至少为 6 位", tab="register")
     
+    # 4. 用户名格式校验
     is_valid, username_error = validate_username(username)
     if not is_valid:
         return render_template('login.html', error=username_error, tab="register")
