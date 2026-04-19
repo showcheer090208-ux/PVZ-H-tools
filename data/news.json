@@ -2,7 +2,7 @@
     "announcements": [
         {
             "id": 1,
-            "title": "新版云端工坊重构完成",
+            "title": "邀请码如果已满，记得提醒站主获得新邀请码",
             "content": "欢迎使用PVZH云端工坊！注意：由于服务器部署在 Render，长时间不访问后的首次唤醒可能存在 30-50 秒延迟。\n目前的限额公开邀请码是： PVZH2026 \n如果你对项目感兴趣或者支持，可以加入交流群讨论！QQ群号：991782379",
             "type": "important"
         }
@@ -10,13 +10,24 @@
     "changelogs": [
         {
             "date": "2026-04-19",
-            "tag": "最新",
+            "tag": "优化",
+            "title": "优化了unity工具和登录流程",
+            "details": [
+                "unity工具会更适配手机",
+                "登录现在更舒服了"
+                
+            ],
+            "is_expanded": true
+        },
+        {
+            "date": "2026-04-19",
+            "tag": "功能",
             "title": "下载中心上线",
             "details": [
                 "增加了下载中心，提供工具和资源的下载链接"
                 
             ],
-            "is_expanded": true
+            "is_expanded": false
         },
         {
             "date": "2026-04-18",

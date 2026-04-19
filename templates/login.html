@@ -3,9 +3,23 @@
 
 {% block content %}
 <script>
-    // 清理残留状态
-    localStorage.clear();
-    sessionStorage.clear();
+    // 按需清理状态：仅在退出登录时清理
+    if (window.location.search.includes('logout=true')) {
+        localStorage.clear();
+        sessionStorage.clear();
+    }
+    
+    // 错误提示自动消失（3秒后）
+    setTimeout(function() {
+        var errorDiv = document.querySelector('.alert-error');
+        var successDiv = document.querySelector('.alert-success');
+        if (errorDiv) errorDiv.style.opacity = '0';
+        if (successDiv) successDiv.style.opacity = '0';
+        setTimeout(function() {
+            if (errorDiv) errorDiv.style.display = 'none';
+            if (successDiv) successDiv.style.display = 'none';
+        }, 300);
+    }, 3000);
 </script>
 
 <div class="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50/50">
@@ -21,48 +35,58 @@
             <p class="text-gray-500 mt-2 text-sm">欢迎指挥官，探索并分享你的游戏魔改</p>
         </div>
 
-        <!-- 错误或成功提示 -->
+        <!-- 错误提示 -->
         {% if error %}
-        <div class="mb-6 p-4 bg-red-50 text-red-600 rounded-2xl text-sm flex items-start">
-            <span class="material-symbols-rounded text-lg mr-2 shrink-0">error</span> 
-            <span class="leading-relaxed">{{ error }}</span>
+        <div class="alert-error mb-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-medium flex items-center border border-red-100 shadow-sm transition-opacity duration-300">
+            <span class="material-symbols-rounded mr-2">error</span>
+            {{ error }}
         </div>
         {% endif %}
+
+        <!-- 成功提示 -->
         {% if success %}
-        <div class="mb-6 p-4 bg-green-50 text-green-700 rounded-2xl text-sm flex items-start">
-            <span class="material-symbols-rounded text-lg mr-2 shrink-0">check_circle</span> 
-            <span class="leading-relaxed">{{ success }}</span>
+        <div class="alert-success mb-6 bg-green-50 text-green-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center border border-green-100 shadow-sm transition-opacity duration-300">
+            <span class="material-symbols-rounded mr-2">check_circle</span>
+            {{ success }}
         </div>
         {% endif %}
 
-        <!-- Tab 切换 -->
-        <div class="flex p-1 mb-8 bg-gray-100 rounded-2xl">
-            <button id="tabLoginBtn" onclick="switchTab('login')" type="button" 
-                    class="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 {% if not show_register %}bg-white text-blue-600 shadow-sm{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                登 录
+        <!-- 选项卡按钮 -->
+        <div class="flex space-x-1 bg-gray-100/80 p-1.5 rounded-2xl mb-8" id="tabContainer">
+            <button type="button" onclick="toggleTab('login')" id="btn-login" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ease-out shadow-sm bg-white text-blue-600">
+                登录
             </button>
-            <button id="tabRegisterBtn" onclick="switchTab('register')" type="button" 
-                    class="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 {% if show_register %}bg-white text-blue-600 shadow-sm{% else %}text-gray-500 hover:text-gray-700{% endif %}">
-                注 册
+            <button type="button" onclick="toggleTab('register')" id="btn-register" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ease-out text-gray-500 hover:text-gray-700">
+                注册
             </button>
         </div>
 
-        <!-- ================= 登录表单 ================= -->
-        <form id="loginForm" action="/login" method="post" class="space-y-5 {% if show_register %}hidden{% endif %}" onsubmit="return handleFormSubmit(this, 'loginSubmitBtn')">
-            <input type="hidden" name="action" value="login">
-            
+        <!-- ================= 1. 登录表单 ================= -->
+        <form id="loginForm" class="space-y-5" action="/login{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}" method="POST" onsubmit="return handleFormSubmit(this, 'loginSubmitBtn')">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 ml-1">邮箱账号</label>
-                <input type="email" name="email" required placeholder="name@example.com"
-                       class="w-full px-4 py-3 rounded-2xl bg-gray-50 border-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all outline-none">
-            </div>
-            
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 ml-1">密码</label>
-                <input type="password" name="password" required placeholder="••••••••"
-                       class="w-full px-4 py-3 rounded-2xl bg-gray-50 border-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                <label class="block text-sm font-bold text-gray-700 mb-1.5 ml-1">邮箱账号</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
+                        <span class="material-symbols-rounded text-[20px]">mail</span>
+                    </span>
+                    <input type="email" name="email" required class="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border-0 text-gray-900 rounded-2xl ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-blue-500 focus:bg-white transition-all text-sm font-medium" placeholder="name@example.com">
+                </div>
             </div>
 
+            <div>
+                <div class="flex items-center justify-between mb-1.5 ml-1 mr-1">
+                    <label class="block text-sm font-bold text-gray-700">密码</label>
+                    <button type="button" onclick="toggleTab('reset')" class="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors">忘记密码？</button>
+                </div>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
+                        <span class="material-symbols-rounded text-[20px]">lock</span>
+                    </span>
+                    <input type="password" name="password" required class="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border-0 text-gray-900 rounded-2xl ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-blue-500 focus:bg-white transition-all text-sm font-medium" placeholder="••••••••">
+                </div>
+            </div>
+
+            <!-- 【恢复】保持登录选项 -->
             <div class="flex items-center justify-between px-1 mt-2">
                 <label class="flex items-center text-sm text-gray-600 cursor-pointer group">
                     <div class="relative flex items-center">
@@ -74,110 +98,227 @@
                     <span class="ml-2 group-hover:text-gray-900 transition-colors">保持登录状态 (7天)</span>
                 </label>
             </div>
-            
-            <button type="submit" id="loginSubmitBtn" 
-                    class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-2xl transition duration-200 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center">
-                <span>进入工坊</span>
+
+            <button type="submit" id="loginSubmitBtn" class="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-blue-500/30 transition-all transform active:scale-[0.98] flex justify-center items-center">
+                立即登录
             </button>
         </form>
 
-        <!-- ================= 注册表单 ================= -->
-        <form id="registerForm" action="/login" method="post" class="space-y-4 {% if not show_register %}hidden{% endif %}" onsubmit="return handleFormSubmit(this, 'registerSubmitBtn')">
-            <input type="hidden" name="action" value="register">
+        <!-- ================= 2. 注册表单 ================= -->
+        <form id="registerForm" class="space-y-5 hidden" action="/register" method="POST" onsubmit="return handleFormSubmit(this, 'registerSubmitBtn')">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1.5 ml-1">用户名</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
+                        <span class="material-symbols-rounded text-[20px]">person</span>
+                    </span>
+                    <input type="text" name="username" required minlength="2" maxlength="15" class="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border-0 text-gray-900 rounded-2xl ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-blue-500 focus:bg-white transition-all text-sm font-medium" placeholder="2-15个字符，支持中文">
+                </div>
+            </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 ml-1">社区邀请码 <span class="text-red-500">*</span></label>
+                <label class="block text-sm font-bold text-gray-700 mb-1.5 ml-1">邮箱账号</label>
                 <div class="relative">
-                    <input type="text" name="invitation_code" required placeholder="PVZH-XXXXXX"
-                           class="w-full px-4 py-3 rounded-2xl bg-gray-50 border-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all outline-none uppercase font-mono tracking-wide">
-                    <div class="absolute right-4 top-2.5 text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1.5 rounded-lg pointer-events-none">凭证获取</div>
+                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
+                        <span class="material-symbols-rounded text-[20px]">mail</span>
+                    </span>
+                    <input type="email" name="email" required class="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border-0 text-gray-900 rounded-2xl ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-blue-500 focus:bg-white transition-all text-sm font-medium" placeholder="name@example.com">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1.5 ml-1">密码</label>
+                    <input type="password" name="password" id="regPassword" required minlength="6" class="block w-full px-4 py-3.5 bg-gray-50 border-0 text-gray-900 rounded-2xl ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-blue-500 focus:bg-white transition-all text-sm font-medium" placeholder="至少6位">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1.5 ml-1">确认密码</label>
+                    <input type="password" id="regConfirmPassword" required minlength="6" class="block w-full px-4 py-3.5 bg-gray-50 border-0 text-gray-900 rounded-2xl ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-blue-500 focus:bg-white transition-all text-sm font-medium" placeholder="再次输入密码">
+                </div>
+            </div>
+            
+            <!-- 密码错误提示 -->
+            <p id="pwdError" class="text-red-500 text-xs font-medium ml-1 hidden mt-1"></p>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1.5 ml-1">社区邀请码 <span class="text-red-500">*</span></label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
+                        <span class="material-symbols-rounded text-[20px]">vpn_key</span>
+                    </span>
+                    <!-- 【修复】字段名改为 invitation_code 与后端一致 -->
+                    <input type="text" name="invitation_code" id="invitationCode" required class="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border-0 text-gray-900 rounded-2xl ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-blue-500 focus:bg-white transition-all text-sm font-medium uppercase font-mono tracking-wider" placeholder="PVZH-XXXXXX">
                 </div>
                 <p class="text-[11px] text-gray-400 mt-1 ml-1">获取方式：官方群公告或老玩家邀请</p>
+                <!-- 邀请码实时校验反馈 -->
+                <p id="inviteCodeError" class="text-red-500 text-xs font-medium ml-1 hidden mt-1"></p>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 ml-1">设置昵称</label>
-                <input type="text" name="username" required placeholder="展示在发帖与评论中" minlength="2" maxlength="15"
-                       class="w-full px-4 py-3 rounded-2xl bg-gray-50 border-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all outline-none">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5 ml-1">绑定邮箱</label>
-                <input type="email" name="email" required placeholder="建议使用真实邮箱"
-                       class="w-full px-4 py-3 rounded-2xl bg-gray-50 border-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all outline-none">
-            </div>
-            
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5 ml-1">密码</label>
-                    <input type="password" name="password" id="regPassword" required placeholder="至少 6 位" minlength="6"
-                           class="w-full px-4 py-3 rounded-2xl bg-gray-50 border-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5 ml-1">确认密码</label>
-                    <input type="password" name="confirm_password" id="regConfirmPassword" required placeholder="再输一次" minlength="6"
-                           class="w-full px-4 py-3 rounded-2xl bg-gray-50 border-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all outline-none">
-                </div>
-            </div>
-            <p id="pwdError" class="text-xs text-red-500 ml-1 hidden mt-1">两次输入的密码不一致！</p>
-            
-            <button type="submit" id="registerSubmitBtn" 
-                    class="w-full mt-6 bg-gray-900 hover:bg-black text-white font-semibold py-3.5 rounded-2xl transition duration-200 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center">
-                <span>立即注册账号</span>
+            <button type="submit" id="registerSubmitBtn" class="w-full mt-2 bg-gray-900 hover:bg-black text-white font-bold py-3.5 rounded-2xl shadow-lg transition-all transform active:scale-[0.98] flex justify-center items-center">
+                创建账号
             </button>
+        </form>
+
+        <!-- ================= 3. 找回密码表单 ================= -->
+        <form id="resetForm" class="space-y-5 hidden" action="/forgot-password" method="POST" onsubmit="return handleFormSubmit(this, 'resetSubmitBtn')">
+            <div class="text-center mb-2">
+                <p class="text-sm text-gray-500 font-medium">输入你的注册邮箱，我们将向你发送一封包含密码重置链接的邮件。</p>
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1.5 ml-1">注册邮箱</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
+                        <span class="material-symbols-rounded text-[20px]">mark_email_read</span>
+                    </span>
+                    <input type="email" name="reset_email" required class="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border-0 text-gray-900 rounded-2xl ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-blue-500 focus:bg-white transition-all text-sm font-medium" placeholder="例如：admin@pvzh.com">
+                </div>
+            </div>
+
+            <button type="submit" id="resetSubmitBtn" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-2xl shadow-lg transition-all transform active:scale-[0.98] flex justify-center items-center">
+                <span class="material-symbols-rounded mr-2 text-[20px]">send</span>发送重置邮件
+            </button>
+            <div class="text-center mt-4">
+                <button type="button" onclick="toggleTab('login')" class="text-sm font-bold text-gray-500 hover:text-gray-800 transition-colors">返回登录</button>
+            </div>
         </form>
     </div>
 </div>
 
 <script>
-    function switchTab(tab) {
+    // ==================== Tab 切换 ====================
+    function toggleTab(tab) {
         const loginForm = document.getElementById('loginForm');
         const registerForm = document.getElementById('registerForm');
-        const loginBtn = document.getElementById('tabLoginBtn');
-        const registerBtn = document.getElementById('tabRegisterBtn');
+        const resetForm = document.getElementById('resetForm');
+        const loginBtn = document.getElementById('btn-login');
+        const registerBtn = document.getElementById('btn-register');
+        const tabContainer = document.getElementById('tabContainer');
+        
+        const activeClass = ['shadow-sm', 'bg-white', 'text-blue-600'];
+        const inactiveClass = ['text-gray-500', 'hover:text-gray-700', 'bg-transparent', 'shadow-none'];
 
-        const activeClass = ['bg-white', 'text-blue-600', 'shadow-sm'];
-        const inactiveClass = ['text-gray-500'];
+        // 隐藏所有表单
+        loginForm.classList.add('hidden');
+        registerForm.classList.add('hidden');
+        resetForm.classList.add('hidden');
 
         if (tab === 'login') {
+            tabContainer.classList.remove('hidden');
             loginForm.classList.remove('hidden');
-            registerForm.classList.add('hidden');
-            
             loginBtn.classList.add(...activeClass);
             loginBtn.classList.remove(...inactiveClass);
             registerBtn.classList.remove(...activeClass);
             registerBtn.classList.add(...inactiveClass);
-        } else {
-            loginForm.classList.add('hidden');
+        } else if (tab === 'register') {
+            tabContainer.classList.remove('hidden');
             registerForm.classList.remove('hidden');
-            
             registerBtn.classList.add(...activeClass);
             registerBtn.classList.remove(...inactiveClass);
             loginBtn.classList.remove(...activeClass);
             loginBtn.classList.add(...inactiveClass);
+        } else if (tab === 'reset') {
+            tabContainer.classList.add('hidden');
+            resetForm.classList.remove('hidden');
         }
     }
 
+    // 从 URL 参数或后端变量恢复 Tab 状态
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetTab = "{{ tab | default('') }}" || urlParams.get('tab');
+    if (targetTab === 'register' || targetTab === 'reset') {
+        toggleTab(targetTab);
+    }
+
+    // ==================== 邀请码实时校验 ====================
+    const inviteCodeInput = document.getElementById('invitationCode');
+    const inviteCodeError = document.getElementById('inviteCodeError');
+    let inviteCodeCheckTimeout = null;
+
+    if (inviteCodeInput) {
+        inviteCodeInput.addEventListener('blur', function() {
+            const code = this.value.trim().toUpperCase();
+            if (code.length < 8) return;
+            
+            // 防抖
+            clearTimeout(inviteCodeCheckTimeout);
+            inviteCodeCheckTimeout = setTimeout(function() {
+                fetch('/api/invitation/check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'error') {
+                        inviteCodeError.innerText = data.message;
+                        inviteCodeError.classList.remove('hidden');
+                    } else {
+                        inviteCodeError.classList.add('hidden');
+                    }
+                })
+                .catch(() => {
+                    // 网络错误时不阻塞提交
+                    inviteCodeError.classList.add('hidden');
+                });
+            }, 500);
+        });
+    }
+
+    // ==================== 表单提交处理 ====================
     function handleFormSubmit(form, btnId) {
+        // 注册表单前端校验
         if (form.id === 'registerForm') {
             const pwd = document.getElementById('regPassword').value;
             const confirmPwd = document.getElementById('regConfirmPassword').value;
             const pwdError = document.getElementById('pwdError');
+            const inviteCode = document.getElementById('invitationCode').value.trim().toUpperCase();
             
+            // 密码长度校验
+            if (pwd.length < 6) {
+                pwdError.innerText = "密码长度至少需要 6 位";
+                pwdError.classList.remove('hidden');
+                return false;
+            }
+
+            // 密码一致性校验
             if (pwd !== confirmPwd) {
+                pwdError.innerText = "两次输入的密码不一致";
                 pwdError.classList.remove('hidden');
                 document.getElementById('regConfirmPassword').focus();
                 return false;
-            } else {
-                pwdError.classList.add('hidden');
             }
+            pwdError.classList.add('hidden');
+            
+            // 邀请码格式校验
+            if (!inviteCode.startsWith('PVZH-')) {
+                inviteCodeError.innerText = "邀请码格式不正确，应以 PVZH- 开头";
+                inviteCodeError.classList.remove('hidden');
+                return false;
+            }
+            
+            // 将大写后的邀请码写回输入框
+            document.getElementById('invitationCode').value = inviteCode;
         }
 
+        // 禁用按钮，显示加载状态
         const btn = document.getElementById(btnId);
+        const originalText = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = `<span class="material-symbols-rounded animate-spin mr-2 text-lg">progress_activity</span> 处理中...`;
+        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 正在处理...`;
         
+        // 提交失败时恢复按钮（通过页面重载恢复，无需额外处理）
         return true;
     }
+
+    // 如果注册失败，恢复按钮状态（后端返回 HTML 时会刷新页面）
+    window.addEventListener('pageshow', function() {
+        const loginBtn = document.getElementById('loginSubmitBtn');
+        const registerBtn = document.getElementById('registerSubmitBtn');
+        const resetBtn = document.getElementById('resetSubmitBtn');
+        
+        if (loginBtn) { loginBtn.disabled = false; loginBtn.innerHTML = '立即登录'; }
+        if (registerBtn) { registerBtn.disabled = false; registerBtn.innerHTML = '创建账号'; }
+        if (resetBtn) { resetBtn.disabled = false; resetBtn.innerHTML = '<span class="material-symbols-rounded mr-2 text-[20px]">send</span>发送重置邮件'; }
+    });
 </script>
 {% endblock %}
