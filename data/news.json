@@ -9,14 +9,24 @@
     ],
     "changelogs": [
         {
-            "date": "2026-04-18",
+            "date": "2026-04-19",
             "tag": "最新",
+            "title": "下载中心上线",
+            "details": [
+                "增加了下载中心，提供工具和资源的下载链接"
+                
+            ],
+            "is_expanded": true
+        },
+        {
+            "date": "2026-04-18",
+            "tag": "功能",
             "title": "新注册模式和卡组编辑大重构",
             "details": [
                 "为了不被supabase的邮箱验证折磨，目前采用了邀请码模式",
                 "增加了卡组代码复制功能！同时优化了手机上的GUI体验"
             ],
-            "is_expanded": true
+            "is_expanded": false
         },
         {
             "date": "2026-04-18",
@@ -26,7 +36,7 @@
                 "防被脚本炸，现在只有登录用户才可以使用工具",
                 "加入了json5库，格式化效果更好了"
             ],
-            "is_expanded": true
+            "is_expanded": false
         },
         {
             "date": "2026-04-17",

@@ -1,0 +1,37 @@
+{
+  "tools": [
+    {
+      "id": "pvzh-DIY",
+      "name": "PVZH卡牌DIY v2.0",
+      "description": "自制卡工具，由qhsj定制制作，请多关注他！",
+      "version": "1.0",
+      "tag": "APK",
+      "size": "37 MB",
+      "login_required": true,
+      "url": "https://uuftmiripdmlisyzwqku.supabase.co/storage/v1/object/public/workshop-downloads/DIY.apk",
+      "updated_at": "2026-04-19"
+    },
+    {
+      "id": "pvzh-v3",
+      "name": "PVZH一键替换v3.0",
+      "description": "一键替换文件工具，如果无法运行，尝试在虚拟机中运行",
+      "version": "1.0",
+      "tag": "APK",
+      "size": "10 MB",
+      "login_required": true,
+      "url": "https://uuftmiripdmlisyzwqku.supabase.co/storage/v1/object/public/workshop-downloads/v3.apk",
+      "updated_at": "2026-04-19"
+    },
+    {
+      "id": "pvzh-heroes",
+      "name": "刷英雄文件",
+      "description": "刷英雄文件工具，使用方法请看视频教程",
+      "version": "1.0",
+      "tag": "ZIP",
+      "size": "2kb",
+      "login_required": true,
+      "url": "https://uuftmiripdmlisyzwqku.supabase.co/storage/v1/object/public/workshop-downloads/heroes.zip",
+      "updated_at": "2026-04-19"
+    }
+  ]
+}

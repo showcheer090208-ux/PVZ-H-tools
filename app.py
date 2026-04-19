@@ -11,6 +11,7 @@ from flask import request
 from database import supabase
 from blueprints.card_sender import card_sender_bp
 from blueprints.pack_buyer import pack_buyer_bp
+from blueprints.downloads import downloads_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -18,6 +19,7 @@ app.config.from_object(Config)
 limiter.init_app(app)
 
 # 注册蓝图
+app.register_blueprint(downloads_bp)
 app.register_blueprint(pack_buyer_bp)
 app.register_blueprint(card_sender_bp)
 app.register_blueprint(auth_bp)
