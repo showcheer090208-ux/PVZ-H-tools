@@ -165,7 +165,8 @@ def register():
     password = request.form.get('password')
     confirm_password = request.form.get('confirm_password')
     username = request.form.get('username', '').strip()
-    invite_code = request.form.get('invite_code', '').strip().upper()
+    invite_code = request.form.get('invitation_code', '') or request.form.get('invite_code', '')
+    invite_code = invite_code.strip().upper()
     
     # 1. 基础校验
     if not all([email, password, username, invite_code]):
