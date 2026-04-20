@@ -234,11 +234,18 @@ def register():
         except Exception as e:
             current_app.logger.error(f"Profile creation failed for {uid}: {e}")
         
-        # 6. 更新邀请码使用次数
+        # 6. 更新邀请码使用次数（重新查询确保最新值）
         try:
-            supabase.table("invitation_codes").update({
-                "used_count": code_info['used_count'] + 1
-            }).eq("code", invite_code).execute()
+            # 重新查询邀请码当前使用次数（避免并发问题）
+            current_code = supabase.table("invitation_codes").select("used_count").eq("code", invite_code).execute()
+            if current_code.data:
+                new_count = current_code.data[0]['used_count'] + 1
+                result = supabase.table("invitation_codes").update({
+                    "used_count": new_count
+                }).eq("code", invite_code).execute()
+                print(f"[DEBUG] 邀请码 {invite_code} 使用次数已更新: {new_count}")
+            else:
+                print(f"[DEBUG] 邀请码 {invite_code} 不存在，无法更新")
         except Exception as e:
             current_app.logger.error(f"Invite code update failed: {e}")
         
