@@ -234,20 +234,16 @@ def register():
         except Exception as e:
             current_app.logger.error(f"Profile creation failed for {uid}: {e}")
         
-        # 6. 更新邀请码使用次数（重新查询确保最新值）
+        # 6. 更新邀请码使用次数（使用 RPC 函数绕过 RLS）
         try:
-            # 重新查询邀请码当前使用次数（避免并发问题）
-            current_code = supabase.table("invitation_codes").select("used_count").eq("code", invite_code).execute()
-            if current_code.data:
-                new_count = current_code.data[0]['used_count'] + 1
-                result = supabase.table("invitation_codes").update({
-                    "used_count": new_count
-                }).eq("code", invite_code).execute()
-                print(f"[DEBUG] 邀请码 {invite_code} 使用次数已更新: {new_count}")
+            result = supabase.rpc('increment_invite_usage', {'code_str': invite_code}).execute()
+            if result.data:
+                print(f"[DEBUG] 邀请码 {invite_code} 使用次数已更新: {result.data}")
             else:
-                print(f"[DEBUG] 邀请码 {invite_code} 不存在，无法更新")
+                print(f"[DEBUG] 邀请码 {invite_code} 更新失败，无返回数据")
         except Exception as e:
             current_app.logger.error(f"Invite code update failed: {e}")
+            print(f"[DEBUG] RPC 调用异常: {e}")
         
         # 7. 判断是否需要邮箱验证
         if res.session:
