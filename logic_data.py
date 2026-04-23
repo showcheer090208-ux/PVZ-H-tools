@@ -88,7 +88,7 @@ class DataManager:
                         self.hero_decks[hero_name].append({
                             "eng_id": eng_id,
                             "chn_name": re.sub(r'\s+', ' ', parts[-1].strip())
-                        })
+                        })  
 
 # 实例化给其他文件导入使用
 data_manager = DataManager()

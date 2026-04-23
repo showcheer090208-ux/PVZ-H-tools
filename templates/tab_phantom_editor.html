@@ -1,0 +1,624 @@
+{% extends "base.html" %}
+{% block title %}幻影引擎 - 卡牌魔改工作台{% endblock %}
+
+{% block content %}
+<div id="phantom-app" class="h-[calc(100vh-64px)] flex flex-col bg-gray-900 text-gray-200 overflow-hidden" v-cloak>
+    
+    <!-- 顶部导航条 -->
+    <header class="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between shrink-0 shadow-md relative z-20">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg border border-gray-700">
+                <span class="material-symbols-rounded text-blue-400 text-sm">folder_open</span>
+                <span class="font-mono text-sm font-bold text-gray-300">[[ pm.currentProjectName || '未命名工程' ]]</span>
+            </div>
+            <div class="hidden md:flex space-x-1 bg-gray-900 p-1 rounded-lg border border-gray-700">
+                <button @click="currentTab = 'basic'" :class="{'bg-blue-600 text-white': currentTab === 'basic', 'text-gray-400': currentTab !== 'basic'}" class="px-4 py-1.5 rounded-md text-sm font-bold transition-colors">基础属性</button>
+                <button @click="currentTab = 'logic'" :class="{'bg-blue-600 text-white': currentTab === 'logic', 'text-gray-400': currentTab !== 'logic'}" class="px-4 py-1.5 rounded-md text-sm font-bold transition-colors">技能逻辑树</button>
+                <button @click="currentTab = 'json'" :class="{'bg-purple-600 text-white': currentTab === 'json', 'text-gray-400': currentTab !== 'json'}" class="px-4 py-1.5 rounded-md text-sm font-bold transition-colors">JSON 源文件</button>
+            </div>
+        </div>
+        
+        <div class="flex items-center space-x-3">
+            <button @click="saveCurrentCard" class="btn-secondary py-1.5 px-4 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded-lg flex items-center transition-all">
+                <span class="material-symbols-rounded text-[18px] mr-1">save</span> 保存卡牌
+            </button>
+            <button @click="packProject" class="btn-primary py-1.5 px-4 text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg flex items-center">
+                <span class="material-symbols-rounded text-[18px] mr-1">build</span> 封包
+            </button>
+        </div>
+    </header>
+
+    <!-- 移动端选项卡 -->
+    <div class="md:hidden flex bg-gray-800 border-b border-gray-700 p-2 overflow-x-auto shrink-0">
+        <button @click="currentTab = 'basic'" :class="{'bg-blue-600 text-white': currentTab === 'basic'}" class="px-3 py-1 rounded text-xs mr-2 text-gray-400">属性</button>
+        <button @click="currentTab = 'logic'" :class="{'bg-blue-600 text-white': currentTab === 'logic'}" class="px-3 py-1 rounded text-xs mr-2 text-gray-400">逻辑</button>
+        <button @click="currentTab = 'json'" :class="{'bg-purple-600 text-white': currentTab === 'json'}" class="px-3 py-1 rounded text-xs text-gray-400">JSON</button>
+    </div>
+
+    <!-- 核心工作区 -->
+    <div class="flex-1 flex overflow-hidden relative">
+        
+        <!-- 左侧：工程卡牌列表 -->
+        <aside class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col hidden md:flex shrink-0 relative z-10">
+            <div class="p-3 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
+                <span class="text-xs font-bold text-gray-400 uppercase">卡牌清单</span>
+                <button @click="createNewCard" class="text-blue-400 hover:text-blue-300"><span class="material-symbols-rounded text-sm">add_box</span></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                <div v-for="(cardData, guid) in pm.projectCards" :key="guid" 
+                     @click="loadCardForEdit(guid)"
+                     :class="{'bg-blue-600/20 border-blue-500/50 text-blue-300': currentCard && currentCard.guid == guid, 'border-transparent text-gray-400': !currentCard || currentCard.guid != guid}"
+                     class="p-2 rounded-lg border cursor-pointer flex items-center text-sm">
+                    <span class="material-symbols-rounded text-[16px] mr-2">style</span>
+                    <span class="truncate">[[ guid ]]</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 中间：动态编辑区 -->
+        <main class="flex-1 bg-gray-900 overflow-y-auto custom-scrollbar relative">
+            <div v-if="currentCard" class="p-4 md:p-6 lg:p-8 max-w-5xl mx-auto h-full pb-32 md:pb-8">
+                
+                <!-- ================== Tab 1: 基础属性 ================== -->
+                <div v-show="currentTab === 'basic'" class="space-y-6 animation-fade-in">
+                    
+                    <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 shadow-lg flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                            <h2 class="text-sm font-bold text-gray-200">从本地 JSON 导入卡牌</h2>
+                            <p class="text-xs text-gray-500">直接选择 data_card_1.json 文件进行解析</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <input type="number" v-model.number="importGuid" placeholder="输入要提取的 GUID" class="bg-gray-900 border border-gray-600 rounded px-3 py-1.5 text-sm text-white w-32 outline-none">
+                            <input type="file" id="fileImportInput" accept=".json" class="hidden" @change="handleFileImport">
+                            <button @click="triggerFileInput" class="btn-secondary py-1.5 px-4 text-sm bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded flex items-center">
+                                <span class="material-symbols-rounded text-[18px] mr-1">file_upload</span> 选择文件并导入
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800 rounded-xl border border-gray-700 p-5 shadow-lg">
+                        <h2 class="text-base font-bold text-gray-200 mb-4 border-b border-gray-700 pb-2">基础参数</h2>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">GUID</label>
+                                <input type="number" v-model.number="currentCard.guid" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm outline-none text-gray-300">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">Prefab Name</label>
+                                <input type="text" v-model="currentCard.prefabName" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm outline-none text-gray-300">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">阵营 (Faction)</label>
+                                <select v-model="currentCard.faction" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm outline-none text-gray-300">
+                                    <option value="Plants">植物 (Plants)</option>
+                                    <option value="Zombies">僵尸 (Zombies)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1">花费 (Cost)</label>
+                                <input type="number" v-model.number="currentCard.cost" class="w-full bg-gray-900 border border-gray-600 text-blue-400 font-bold rounded px-3 py-2 text-sm outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1 flex items-center">
+                                    <input type="checkbox" v-model="currentCard.hasAttack" class="mr-1 rounded bg-gray-700"> 攻击力
+                                </label>
+                                <input type="number" v-model.number="currentCard.attack" :disabled="!currentCard.hasAttack" class="w-full bg-gray-900 border border-gray-600 text-orange-400 font-bold rounded px-3 py-2 text-sm outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-1 flex items-center">
+                                    <input type="checkbox" v-model="currentCard.hasHealth" class="mr-1 rounded bg-gray-700"> 生命值
+                                </label>
+                                <input type="number" v-model.number="currentCard.health" :disabled="!currentCard.hasHealth" class="w-full bg-gray-900 border border-gray-600 text-green-400 font-bold rounded px-3 py-2 text-sm outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800 rounded-xl border border-gray-700 p-5 shadow-lg">
+                        <h2 class="text-base font-bold text-gray-200 mb-4 border-b border-gray-700 pb-2">杂项与引擎标记</h2>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            <label class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-900 p-2 rounded border border-gray-700 cursor-pointer hover:border-gray-500">
+                                <input type="checkbox" v-model="currentCard.ignoreDeckLimit" class="rounded bg-gray-800"> <span>无视卡组上限</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-900 p-2 rounded border border-gray-700 cursor-pointer hover:border-gray-500">
+                                <input type="checkbox" v-model="currentCard.isTrick" class="rounded bg-gray-800"> <span>锦囊 (Trick)</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-900 p-2 rounded border border-gray-700 cursor-pointer hover:border-gray-500">
+                                <input type="checkbox" v-model="currentCard.isEnvironment" class="rounded bg-gray-800"> <span>环境场地 (Env)</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-900 p-2 rounded border border-gray-700 cursor-pointer hover:border-gray-500">
+                                <input type="checkbox" v-model="currentCard.isSurprise" class="rounded bg-gray-800"> <span>墓碑/奇袭</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-900 p-2 rounded border border-gray-700 cursor-pointer hover:border-gray-500">
+                                <input type="checkbox" v-model="currentCard.isPower" class="rounded bg-gray-800"> <span>超能力 (Power)</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-900 p-2 rounded border border-gray-700 cursor-pointer hover:border-gray-500">
+                                <input type="checkbox" v-model="currentCard.isPrimaryPower" class="rounded bg-gray-800"> <span>主超能力</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================== Tab 2: 动态逻辑树与检查器 ================== -->
+                <div v-show="currentTab === 'logic'" class="h-full flex flex-col md:flex-row gap-4 animation-fade-in">
+                    
+                    <!-- 树状图区域 -->
+                    <div class="flex-1 bg-gray-800 rounded-xl border border-gray-700 flex flex-col overflow-hidden shadow-lg min-h-[400px]">
+                        <div class="p-3 border-b border-gray-700 bg-gray-800/80 flex justify-between items-center shrink-0">
+                            <span class="text-sm font-bold text-gray-200">技能逻辑树</span>
+                            <button @click="openNodeModal(null)" class="bg-blue-600 hover:bg-blue-500 text-xs px-2 py-1 rounded text-white flex items-center">
+                                <span class="material-symbols-rounded text-[14px] mr-1">add</span> 根节点
+                            </button>
+                        </div>
+                        <div class="flex-1 p-3 overflow-y-auto custom-scrollbar">
+                            <logic-tree-node 
+                                v-for="(node, index) in logicTree" 
+                                :key="node._uuid" 
+                                :node="node" 
+                                :index="index"
+                                :parent-array="logicTree"
+                                :active-node-id="activeNode ? activeNode._uuid : null"
+                                @select="selectNode"
+                                @add-child="openNodeModal"
+                                @delete="deleteNode">
+                            </logic-tree-node>
+                            <div v-if="logicTree.length === 0" class="text-center text-gray-500 text-sm mt-10">
+                                暂无逻辑，点击右上角添加根节点
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 属性检查器 -->
+                    <div class="w-full md:w-80 bg-gray-800 rounded-xl border border-gray-700 flex flex-col overflow-hidden shadow-lg shrink-0">
+                        <div class="p-3 border-b border-gray-700 bg-gray-800/80 shrink-0">
+                            <span class="text-sm font-bold text-gray-200">🛠️ 属性检查器</span>
+                        </div>
+                        <div class="flex-1 p-4 overflow-y-auto custom-scrollbar">
+                            <div v-if="!activeNode" class="flex h-full items-center justify-center text-gray-500 text-sm">
+                                请在左侧选择一个节点
+                            </div>
+                            <div v-else class="space-y-4">
+                                <div class="mb-4 pb-2 border-b border-gray-700">
+                                    <h3 class="font-bold text-blue-400 text-sm">[[ getLocalName(activeNode.id) ]]</h3>
+                                    <p class="text-xs text-gray-500 break-all">[[ activeNode.id ]]</p>
+                                </div>
+
+                                <div v-for="(config, paramKey) in getEditableParams(activeNode.id)" :key="paramKey">
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">[[ getLocalParamName(paramKey) ]]</label>
+                                    
+                                    <input v-if="config.type === 'int'" type="number" 
+                                           v-model.number="activeNode.params[paramKey]" 
+                                           @change="syncTreeToModel"
+                                           class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-sm text-gray-200 outline-none focus:border-blue-500">
+                                    
+                                    <select v-else-if="config.type === 'enum'" 
+                                            v-model="activeNode.params[paramKey]" 
+                                            @change="syncTreeToModel"
+                                            class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-sm text-gray-200 outline-none focus:border-blue-500">
+                                        <option v-for="opt in config.options" :value="opt">[[ getEnumName(opt) ]]</option>
+                                    </select>
+                                    
+                                    <label v-else-if="config.type === 'bool'" class="flex items-center text-sm text-gray-300">
+                                        <input type="checkbox" v-model="activeNode.params[paramKey]" @change="syncTreeToModel" class="mr-2 rounded bg-gray-900 border-gray-600"> 
+                                        启用 (True)
+                                    </label>
+                                    
+                                    <input v-else type="text" 
+                                           v-model="activeNode.params[paramKey]" 
+                                           @change="syncTreeToModel"
+                                           class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-sm text-gray-200 outline-none focus:border-blue-500">
+                                </div>
+                                
+                                <div v-if="Object.keys(getEditableParams(activeNode.id)).length === 0" class="text-xs text-gray-500 italic">
+                                    此节点无开放配置参数。
+                                </div>
+                                
+                                <div class="mt-6 pt-3 border-t border-gray-700">
+                                    <div class="text-[10px] uppercase text-gray-500 mb-2 font-bold tracking-widest">逻辑语义预览</div>
+                                    <p class="text-sm text-gray-300 italic leading-relaxed bg-gray-900/50 p-2 rounded">
+                                        [[ translateNodeToText(activeNode) || '无法解析当前效果' ]]
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================== Tab 3: JSON 源文件 ================== -->
+                <div v-show="currentTab === 'json'" class="h-full flex flex-col animation-fade-in">
+                    <div class="bg-gray-950 rounded-xl border border-gray-700 flex-1 flex flex-col overflow-hidden">
+                        <div class="p-2 border-b border-gray-800 bg-gray-900 text-xs text-blue-400 font-mono">
+                            // 最终交由 UnityPy 封包的结构 (由 LogicAdapter 生成)
+                        </div>
+                        <div class="flex-1 overflow-auto p-4 custom-scrollbar">
+                            <pre class="text-[13px] font-mono leading-relaxed" style="color: #9cdcfe;">[[ generatedEngineJson ]]</pre>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- 节点选择模态框 -->
+    <div v-if="showNodeModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-gray-600">
+            <div class="p-3 border-b border-gray-700 flex justify-between items-center bg-gray-900">
+                <span class="font-bold text-gray-200 text-sm">选择要添加的组件</span>
+                <button @click="showNodeModal = false" class="text-gray-400 hover:text-white"><span class="material-symbols-rounded text-sm">close</span></button>
+            </div>
+            <div class="p-3 overflow-y-auto max-h-96 space-y-2 custom-scrollbar">
+                <div v-for="(def, key) in PhantomConfig.NODE_DEF" :key="key" 
+                     @click="confirmAddNode(key)"
+                     class="p-2 bg-gray-900 rounded border border-gray-700 hover:border-blue-500 cursor-pointer transition-colors group">
+                    <div class="text-sm font-bold text-blue-400 group-hover:text-blue-300">[[ getLocalName(key) ]]</div>
+                    <div class="text-[10px] text-gray-500">[[ def.category || '其他' ]] | [[ key ]]</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vue 树状节点递归模板 -->
+<template id="logic-node-template">
+    <div class="mb-1 relative">
+        <div class="flex items-center justify-between p-1.5 rounded border transition-colors group"
+             :class="activeNodeId === node._uuid ? 'bg-blue-600/30 border-blue-500' : 'bg-gray-900 border-gray-700 hover:bg-gray-700'">
+            
+            <div class="flex-1 flex items-center cursor-pointer overflow-hidden" @click="$emit('select', node)">
+                <span class="material-symbols-rounded text-[16px] mr-1" :class="activeNodeId === node._uuid ? 'text-blue-400' : 'text-gray-400'">
+                    [[ node.children && node.children.length > 0 ? 'folder_open' : 'description' ]]
+                </span>
+                <span class="text-sm truncate select-none text-gray-300">[[ displayTitle ]]</span>
+            </div>
+            
+            <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button v-if="canHaveChildren" @click.stop="$emit('add-child', node)" class="text-gray-400 hover:text-green-400 bg-gray-800 rounded px-1" title="添加子节点">
+                    <span class="material-symbols-rounded text-[14px]">add</span>
+                </button>
+                <button @click.stop="moveUp" class="text-gray-400 hover:text-blue-400 bg-gray-800 rounded px-1">
+                    <span class="material-symbols-rounded text-[14px]">arrow_upward</span>
+                </button>
+                <button @click.stop="moveDown" class="text-gray-400 hover:text-blue-400 bg-gray-800 rounded px-1">
+                    <span class="material-symbols-rounded text-[14px]">arrow_downward</span>
+                </button>
+                <button @click.stop="$emit('delete', {parentArray: parentArray, index: index})" class="text-gray-400 hover:text-red-400 bg-gray-800 rounded px-1">
+                    <span class="material-symbols-rounded text-[14px]">delete</span>
+                </button>
+            </div>
+        </div>
+        
+        <div v-if="node.children && node.children.length > 0" class="ml-4 pl-2 border-l border-gray-700 border-dashed mt-1">
+            <logic-tree-node 
+                v-for="(child, cIndex) in node.children" 
+                :key="child._uuid" 
+                :node="child"
+                :index="cIndex"
+                :parent-array="node.children"
+                :active-node-id="activeNodeId"
+                @select="$emit('select', $event)"
+                @add-child="$emit('add-child', $event)"
+                @delete="$emit('delete', $event)">
+            </logic-tree-node>
+        </div>
+    </div>
+</template>
+
+<style>
+[v-cloak] { display: none; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+.animation-fade-in { animation: fadeIn 0.2s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/phantom_utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/phantom_config.js') }}"></script>
+<script src="{{ url_for('static', filename='js/card_model.js') }}"></script>
+<script src="{{ url_for('static', filename='js/logic_translator.js') }}"></script>
+<script src="{{ url_for('static', filename='js/project_manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/logic_adapter.js') }}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const { createApp, ref, reactive, computed, onMounted, watch } = Vue;
+
+    // 注册 Vue 递归子组件
+    const LogicTreeNode = {
+        name: 'LogicTreeNode',
+        template: '#logic-node-template',
+        props: ['node', 'index', 'parentArray', 'activeNodeId'],
+        emits: ['select', 'add-child', 'delete'],
+        setup(props, { emit }) {
+            const displayTitle = computed(() => {
+                const nodeDef = PhantomConfig.NODE_DEF[props.node.id] || {};
+                let title = PhantomConfig.getNodeName(props.node.id);
+                if (props.node.params?.DamageAmount) title += ` (伤害:${props.node.params.DamageAmount})`;
+                else if (props.node.params?.DrawAmount) title += ` (抽${props.node.params.DrawAmount})`;
+                else if (props.node.params?.HealAmount) title += ` (治疗${props.node.params.HealAmount})`;
+                else if (props.node.params?.AttackAmount || props.node.params?.HealthAmount) {
+                    let atk = props.node.params.AttackAmount || 0;
+                    let hp = props.node.params.HealthAmount || 0;
+                    if (atk !== 0 || hp !== 0) title += ` (${atk>0?'+'+atk:atk}/${hp>0?'+'+hp:hp})`;
+                }
+                return title;
+            });
+            
+            const canHaveChildren = computed(() => {
+                const def = PhantomConfig.NODE_DEF[props.node.id];
+                return def && def.child_prop;
+            });
+
+            const moveUp = () => {
+                if (props.index > 0) {
+                    const temp = props.parentArray[props.index];
+                    props.parentArray[props.index] = props.parentArray[props.index - 1];
+                    props.parentArray[props.index - 1] = temp;
+                }
+            };
+            
+            const moveDown = () => {
+                if (props.index < props.parentArray.length - 1) {
+                    const temp = props.parentArray[props.index];
+                    props.parentArray[props.index] = props.parentArray[props.index + 1];
+                    props.parentArray[props.index + 1] = temp;
+                }
+            };
+
+            return { displayTitle, canHaveChildren, moveUp, moveDown };
+        },
+        delimiters: ['[[', ']]']
+    };
+
+    // --- 主 Vue 实例 ---
+    const app = createApp({
+        components: { LogicTreeNode },
+        setup() {
+            const pmInstance = new ProjectManager();
+            const pm = reactive({
+                currentProjectName: pmInstance.currentProjectName,
+                projectCards: pmInstance.projectCards
+            });
+
+            if (!pm.currentProjectName) {
+                pmInstance.createProject("My_First_Mod");
+                pm.currentProjectName = pmInstance.currentProjectName;
+                pm.projectCards = pmInstance.projectCards;
+            }
+
+            const currentTab = ref('logic');
+            const currentCard = ref(null);
+            const logicTree = ref([]);
+            const activeNode = ref(null);
+            const showNodeModal = ref(false);
+            const importGuid = ref(null);
+
+            // 辅助函数
+            const getLocalName = (nodeId) => PhantomConfig.getNodeName(nodeId);
+            const getLocalParamName = (paramId) => PhantomConfig.getParamName(paramId);
+            const getEnumName = (enumVal) => PhantomConfig.ENUM_NAMES?.[enumVal] || enumVal;
+            
+            const getEditableParams = (nodeId) => {
+                const def = PhantomConfig.NODE_DEF[nodeId];
+                return def?.editable_params || {};
+            };
+
+            const translateNodeToText = (node) => {
+                if (!node) return '';
+                const engineJson = LogicAdapter.buildEngineJson(node);
+                return LogicTranslator.parseEffect(engineJson) || '无描述';
+            };
+
+            // 校验节点插入合法性
+            const canInsertNode = (parentId, childNodeId) => {
+                const childDef = PhantomConfig.NODE_DEF[childNodeId];
+                if (!childDef) return false;
+                if (!parentId || parentId === 'root') {
+                    return ['Trigger', 'Effect', 'CompositeQuery', 'Query', 'TargetSelector', 'Filter'].includes(childDef.category);
+                }
+                const parentDef = PhantomConfig.NODE_DEF[parentId];
+                if (!parentDef || !parentDef.allowed_children) {
+                    return !!parentDef?.child_prop;
+                }
+                return parentDef.allowed_children.includes(childDef.category) || 
+                       parentDef.allowed_children.includes(childNodeId);
+            };
+
+            const generatedEngineJson = computed(() => {
+                if (logicTree.value.length === 0) return "[]";
+                return JSON.stringify(LogicAdapter.buildAll(logicTree.value), null, 4);
+            });
+
+            const syncTreeToModel = () => {
+                if (currentCard.value) {
+                    currentCard.value.triggeredAbilities = LogicAdapter.buildAll(logicTree.value);
+                }
+            };
+
+            watch(logicTree, syncTreeToModel, { deep: true });
+
+            const selectNode = (node) => { activeNode.value = node; };
+            
+            const deleteNode = ({parentArray, index}) => {
+                if (confirm("确定删除此节点及其所有子节点吗？")) {
+                    const removed = parentArray.splice(index, 1)[0];
+                    if (activeNode.value && activeNode.value._uuid === removed._uuid) {
+                        activeNode.value = null;
+                    }
+                    syncTreeToModel();
+                }
+            };
+
+            const openNodeModal = (parentNode) => {
+                pendingParentNode.value = parentNode;
+                showNodeModal.value = true;
+            };
+
+            let pendingParentNode = ref(null);
+
+            const confirmAddNode = (nodeId) => {
+                const parent = pendingParentNode.value;
+                const parentId = parent ? parent.id : 'root';
+                
+                if (!canInsertNode(parentId, nodeId)) {
+                    alert(`无法添加：${getLocalName(nodeId)} 不能放在 ${parent ? getLocalName(parent.id) : '根节点'} 下`);
+                    return;
+                }
+
+                const def = PhantomConfig.NODE_DEF[nodeId];
+                const newNode = {
+                    _uuid: PhantomUtils.generateUUID(),
+                    id: nodeId,
+                    params: PhantomUtils.deepClone(def?.default_data || {}),
+                    children: []
+                };
+
+                if (parent) {
+                    if (!parent.children) parent.children = [];
+                    parent.children.push(newNode);
+                } else {
+                    logicTree.value.push(newNode);
+                }
+                
+                showNodeModal.value = false;
+                activeNode.value = newNode;
+                syncTreeToModel();
+            };
+
+            // 文件导入
+            const triggerFileInput = () => {
+                if (!importGuid.value) {
+                    alert("请先输入要提取的卡牌 GUID！");
+                    return;
+                }
+                document.getElementById('fileImportInput').click();
+            };
+
+            const handleFileImport = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const allData = JSON.parse(e.target.result);
+                        const targetData = allData[importGuid.value];
+                        if (!targetData) {
+                            alert(`在文件中找不到 GUID 为 ${importGuid.value} 的卡牌！`);
+                            return;
+                        }
+                        currentCard.value.importFromRawData(importGuid.value, targetData);
+                        logicTree.value = LogicAdapter.engineJsonToTree(currentCard.value.triggeredAbilities);
+                        saveCurrentCard();
+                        alert("✅ 导入成功！属性和逻辑树已更新。");
+                    } catch (err) {
+                        console.error("解析 JSON 失败", err);
+                        alert("读取 JSON 文件失败，请确认文件格式正确。");
+                    }
+                    event.target.value = '';
+                };
+                reader.readAsText(file);
+            };
+
+            // 卡牌操作
+            const loadCardForEdit = (guidStr) => {
+                const rawData = pm.projectCards[guidStr];
+                if (!rawData) return;
+                
+                const card = new CardModel();
+                Object.assign(card, rawData);
+                currentCard.value = reactive(card);
+                
+                if (card.triggeredAbilities && card.triggeredAbilities.length > 0) {
+                    logicTree.value = LogicAdapter.engineJsonToTree(card.triggeredAbilities);
+                } else {
+                    logicTree.value = [];
+                }
+                activeNode.value = null;
+            };
+
+            const saveCurrentCard = () => {
+                if (!currentCard.value) return;
+                pmInstance.addOrUpdateCard(currentCard.value);
+                pm.projectCards = pmInstance.projectCards;
+            };
+
+            const createNewCard = () => {
+                currentCard.value = reactive(new CardModel());
+                logicTree.value = [];
+                activeNode.value = null;
+                saveCurrentCard();
+            };
+
+            const packProject = async () => {
+                if (!pm.currentProjectName) {
+                    alert("请先创建或打开一个工程！");
+                    return;
+                }
+
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.assets';
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append('base_bundle', file);
+                    formData.append('cards_data', JSON.stringify(pmInstance.projectCards));
+
+                    try {
+                        const resp = await fetch('/api/phantom/pack', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (resp.ok) {
+                            const blob = await resp.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `MOD_${pm.currentProjectName}_${new Date().getTime()}.assets`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            alert("打包成功！文件已开始下载。");
+                        } else {
+                            const err = await resp.json();
+                            alert("打包失败: " + (err.msg || "未知错误"));
+                        }
+                    } catch (error) {
+                        alert("请求后端出错: " + error.message);
+                    }
+                };
+                input.click();
+            };
+
+            onMounted(() => {
+                const guids = Object.keys(pm.projectCards);
+                if (guids.length > 0) {
+                    loadCardForEdit(guids[0]);
+                } else {
+                    createNewCard();
+                }
+            });
+
+            return {
+                pm, currentTab, currentCard, logicTree, activeNode, showNodeModal, 
+                PhantomConfig, generatedEngineJson, importGuid,
+                selectNode, deleteNode, openNodeModal, confirmAddNode, syncTreeToModel,
+                getLocalName, getLocalParamName, getEditableParams, getEnumName, translateNodeToText,
+                createNewCard, loadCardForEdit, saveCurrentCard, packProject,
+                triggerFileInput, handleFileImport
+            };
+        },
+        delimiters: ['[[', ']]']
+    });
+    
+    app.mount('#phantom-app');
+});
+</script>
+{% endblock %}
