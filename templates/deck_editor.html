@@ -603,6 +603,7 @@
                     }));
                 };
 
+                // 修改保存到本地的部分（已经在 selectDeck 中正确处理）
                 const selectDeck = (deck) => {
                     currentDeck.value = deck;
                     const saved = localStorage.getItem(`pvzh_deck_${deck.eng_id}`);
@@ -619,8 +620,7 @@
                                         name: cInfo?.name || `未知卡牌(${e.CardGuid})`,
                                         cardguid: e.CardGuid,
                                         count: e.NumCopies,
-                                        // 核心修复：读取原始包时补全阵营
-                                        faction: cInfo ? cInfo.Faction : (e.Faction || 0)
+                                        faction: cInfo ? cInfo.Faction : e.Faction  // ✅ e.Faction 已经是整数
                                     };
                                 });
                             } else {
@@ -632,6 +632,7 @@
                     }
                     if (!isDesktop.value) switchTab('deck');
                 };
+
 
                 const quickAddCard = (card) => {
                     if (!currentDeck.value) {
@@ -778,13 +779,18 @@
                     }
                 };
 
-                // ========== 导出相关 ==========
+                // ========== 导出功能 ==========
                 const getModifiedDecks = () => {
                     const mods = {};
                     for (let i = 0; i < localStorage.length; i++) {
                         const key = localStorage.key(i);
                         if (key?.startsWith('pvzh_deck_')) {
-                            mods[key.replace('pvzh_deck_', '')] = JSON.parse(localStorage.getItem(key));
+                            const cards = JSON.parse(localStorage.getItem(key));
+                            mods[key.replace('pvzh_deck_', '')] = cards.map(card => ({
+                                cardguid: Number(card.cardguid),
+                                count: Number(card.count),
+                                faction: Number(card.faction)  // ✅ 确保是数字
+                            }));
                         }
                     }
                     return mods;
@@ -830,13 +836,30 @@
                     const mods = getModifiedDecks();
                     if (Object.keys(mods).length === 0) return showToast("您还没有修改任何卡组！请先保存。", "error");
                     
+                    // ✅ 确保数据类型正确
+                    const cleanedMods = {};
+                    for (const [deckId, cards] of Object.entries(mods)) {
+                        cleanedMods[deckId] = cards.map(card => ({
+                            cardguid: Number(card.cardguid),  // 确保是数字
+                            count: Number(card.count),        // 确保是数字
+                            faction: typeof card.faction === 'number' ? card.faction : (card.faction === "Zombie" ? 1 : 0)  // 确保是数字
+                        }));
+                    }
+                    
                     showToast('云端合成请求已发送...', 'info');
                     try {
                         const formData = new FormData();
-                        formData.append('deck_json', JSON.stringify(mods));
+                        formData.append('deck_json', JSON.stringify(cleanedMods));
                         
-                        const response = await fetch('/api/quick_export', { method: 'POST', body: formData });
-                        if (!response.ok) throw new Error("API返回失败");
+                        const response = await fetch('/api/quick_export', { 
+                            method: 'POST', 
+                            body: formData 
+                        });
+                        
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`API返回失败: ${response.status} ${errorText}`);
+                        }
                         
                         const blob = await response.blob();
                         const url = window.URL.createObjectURL(blob);
@@ -848,7 +871,8 @@
                         showToast("✨ ZIP 打包成功！开始下载。");
                         showExportMenu.value = false;
                     } catch (error) {
-                        showToast("演示环境/请求失败: 无法连接真实打包服务", "error");
+                        console.error("导出错误:", error);
+                        showToast(`打包失败: ${error.message}`, "error");
                     }
                 };
 

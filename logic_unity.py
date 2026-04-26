@@ -46,30 +46,92 @@ class UnityProcessor:
         with zipfile.ZipFile(memory_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
             for b_name in self.bundle_names:
                 bundle_path = os.path.join(base_dir, "data", b_name)
-                if not os.path.exists(bundle_path): continue
+                if not os.path.exists(bundle_path):
+                    print(f"警告: 找不到文件 {bundle_path}")
+                    continue
                 
-                env = UnityPy.load(bundle_path)
-                for obj in env.objects:
-                    if obj.type.name == "MonoBehaviour":
-                        try:
-                            tree = obj.read_typetree()
-                            m_name = tree.get("m_Name", "")
-                            if m_name in mods_dict:
-                                # 修改：使用 .get() 容错，并为缺失的 Guid 生成随机 uuid
-                                tree["Cards"]["CardEntries"] = [{
-                                    "Faction": c.get('faction', 'Plant'), 
-                                    "CardGuid": c['cardguid'],
-                                    "Guid": c.get('guid', str(uuid.uuid4())), 
-                                    "NumCopies": c.get('count', 1), 
-                                    "Filter": ""
-                                } for c in mods_dict[m_name]]
-                                obj.save_typetree(tree)
-                        except Exception as e:
-                            print(f"回填卡组 {m_name} 失败: {e}") 
-                            continue
-                
-                # 回写文件流
-                zf.writestr(b_name, env.file.save(packer="lz4"))
+                try:
+                    env = UnityPy.load(bundle_path)
+                    
+                    for obj in env.objects:
+                        if obj.type.name == "MonoBehaviour":
+                            try:
+                                tree = obj.read_typetree()
+                                m_name = tree.get("m_Name", "")
+                                
+                                if m_name in mods_dict:
+                                    print(f"正在修改卡组: {m_name}")
+                                    
+                                    # 获取原始卡牌条目
+                                    original_entries = tree.get("Cards", {}).get("CardEntries", [])
+                                    
+                                    # 创建原始卡牌的映射表
+                                    original_map = {}
+                                    for entry in original_entries:
+                                        card_guid = entry.get("CardGuid")
+                                        if card_guid is not None:
+                                            original_map[card_guid] = entry
+                                    
+                                    # 构建新的 CardEntries
+                                    new_entries = []
+                                    for card_data in mods_dict[m_name]:
+                                        card_guid = card_data['cardguid']
+                                        
+                                        # 确保 CardGuid 是整数
+                                        if not isinstance(card_guid, int):
+                                            card_guid = int(card_guid)
+                                        
+                                        # 查找或创建条目
+                                        if card_guid in original_map:
+                                            # ✅ 使用原始条目的完全拷贝
+                                            import copy
+                                            new_entry = copy.deepcopy(original_map[card_guid])
+                                            # ✅ 只修改数量，保持其他所有字段不变
+                                            new_entry["NumCopies"] = int(card_data.get('count', 1))
+                                        else:
+                                            # 新卡牌：使用模板（第一条记录）
+                                            if original_entries:
+                                                import copy
+                                                new_entry = copy.deepcopy(original_entries[0])
+                                                # 设置新卡牌的值
+                                                new_entry["CardGuid"] = card_guid
+                                                new_entry["NumCopies"] = int(card_data.get('count', 1))
+                                                # ✅ Faction 必须是整数
+                                                faction_val = card_data.get('faction', 0)
+                                                if isinstance(faction_val, int):
+                                                    new_entry["Faction"] = faction_val
+                                                else:
+                                                    # 如果是字符串，转换为整数
+                                                    new_entry["Faction"] = 1 if faction_val == "Zombie" else 0
+                                                new_entry["Guid"] = str(uuid.uuid4())
+                                                new_entry["Filter"] = ""
+                                            else:
+                                                print(f"警告: 卡组 {m_name} 没有原始卡牌，跳过")
+                                                continue
+                                        
+                                        new_entries.append(new_entry)
+                                    
+                                    # 更新 tree
+                                    tree["Cards"]["CardEntries"] = new_entries
+                                    
+                                    # 保存
+                                    obj.save_typetree(tree)
+                                    print(f"成功修改卡组: {m_name}, 共 {len(new_entries)} 张卡牌")
+                                    
+                            except Exception as e:
+                                print(f"处理对象时出错: {e}")
+                                import traceback
+                                traceback.print_exc()
+                                continue
+                    
+                    # 保存 bundle
+                    zf.writestr(b_name, env.file.save(packer="lz4"))
+                    print(f"已写入: {b_name}")
+                        
+                except Exception as e:
+                    print(f"加载bundle {b_name} 失败: {e}")
+                    continue
+        
         memory_zip.seek(0)
         return memory_zip
 
